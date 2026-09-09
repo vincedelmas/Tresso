@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/vincedelmas/Tresso/compare/v1.2.0...v1.2.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **auth:** upgrade better-auth to remove issuer requirement ([f1d654f](https://github.com/vincedelmas/Tresso/commit/f1d654fd69992559dd676ced32a8ce0021ed3572))
+
 ## [1.2.0](https://github.com/vincedelmas/Tresso/compare/v1.1.0...v1.2.0) (2026-08-29)
 
 
