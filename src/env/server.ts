@@ -15,4 +15,5 @@ export const serverEnv = createEnv({
         GOOGLE_CLIENT_SECRET: z.string(),
     },
     runtimeEnv: process.env,
+    skipValidation: process.env.SKIP_ENV_VALIDATION === "true",
 });
