@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/vincedelmas/Tresso/compare/v1.2.1...v1.3.0) (2026-10-23)
+
+
+### Features
+
+* add docker image ([8e5b661](https://github.com/vincedelmas/Tresso/commit/8e5b6613de3100f063aa233298f48b568e89bfd1))
+
 ## [1.2.1](https://github.com/vincedelmas/Tresso/compare/v1.2.0...v1.2.1) (2026-09-09)
 
 
