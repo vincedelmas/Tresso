@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/vincedelmas/Tresso/compare/v1.3.0...v1.3.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* add latest name to docker image ([4da912b](https://github.com/vincedelmas/Tresso/commit/4da912bb11df7f079dff81fbec9ee60129b71aca))
+
 ## [1.3.0](https://github.com/vincedelmas/Tresso/compare/v1.2.1...v1.3.0) (2026-10-23)
 
 
