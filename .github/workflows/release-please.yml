@@ -66,6 +66,7 @@ jobs:
           tags: |
             ${{ steps.image.outputs.name }}:${{ needs.release-please.outputs.tag_name }}
             ${{ steps.image.outputs.name }}:sha-${{ needs.release-please.outputs.sha }}
+            ${{ steps.image.outputs.name }}:latest
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ needs.release-please.outputs.sha }}
