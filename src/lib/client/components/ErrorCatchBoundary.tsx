@@ -4,7 +4,7 @@ import {ErrorComponent} from "~/lib/client/components/ErrorComponent";
 
 
 export function ErrorCatchBoundary({ error }: Readonly<ErrorComponentProps>) {
-    if (!error.message) {
+    if (!(error instanceof Error) || !error.message) {
         return (
             <ErrorComponent
                 title="Well, This is Awkward"
