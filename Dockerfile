@@ -2,7 +2,9 @@ ARG BUN_VERSION=1.4.4
 FROM oven/bun:${BUN_VERSION} AS production-dependencies
 WORKDIR /app
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
+# Dependency source maps are only needed for debugging their original sources.
+RUN bun install --frozen-lockfile --production \
+    && find node_modules -type f -name '*.map' -delete
 
 
 FROM oven/bun:${BUN_VERSION} AS build
