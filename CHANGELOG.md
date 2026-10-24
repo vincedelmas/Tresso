@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.2](https://github.com/vincedelmas/Tresso/compare/v1.3.1...v1.3.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **ui:** narrow caught errors before reading their message ([8c05b34](https://github.com/vincedelmas/Tresso/commit/8c05b34877f8d59e5571ee2cfebb9aa22cd9a268))
+
+
+### Performance Improvements
+
+* **docker:** omit type declarations from runtime deps ([01e9934](https://github.com/vincedelmas/Tresso/commit/01e9934ebe0a1cf0a853bbbee9bc507f7d68536f))
+* **docker:** reduce runtime image size ([8c05b34](https://github.com/vincedelmas/Tresso/commit/8c05b34877f8d59e5571ee2cfebb9aa22cd9a268))
+* **docker:** remove dependency source maps from runtime image ([75a13a9](https://github.com/vincedelmas/Tresso/commit/75a13a9ae7faa502a7f69c18f0e6082bb33a3647))
+
 ## [1.3.1](https://github.com/vincedelmas/Tresso/compare/v1.3.0...v1.3.1) (2026-10-23)
 
 
