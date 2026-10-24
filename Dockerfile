@@ -2,9 +2,9 @@ ARG BUN_VERSION=1.4.4
 FROM oven/bun:${BUN_VERSION} AS production-dependencies
 WORKDIR /app
 COPY package.json bun.lock ./
-# Dependency source maps are only needed for debugging their original sources.
+# Runtime dependencies do not need source maps or TypeScript declarations.
 RUN bun install --frozen-lockfile --production \
-    && find node_modules -type f -name '*.map' -delete
+    && find node_modules -type f \( -name '*.map' -o -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \) -delete
 
 
 FROM oven/bun:${BUN_VERSION} AS build
