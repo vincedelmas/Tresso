@@ -15,7 +15,7 @@ process.env.GOOGLE_CLIENT_SECRET ??= "test-client-secret";
 const sqlite = new Database(databasePath, { create: true });
 
 sqlite.run("PRAGMA foreign_keys = ON");
-sqlite.exec(`
+sqlite.run(`
     CREATE TABLE user (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -56,8 +56,8 @@ const {moveCardForUser} = await import("~/lib/server/functions/cards");
 
 
 beforeEach(() => {
-    sqlite.exec("DROP TRIGGER IF EXISTS fail_column_reorder");
-    sqlite.exec("DELETE FROM cards; DELETE FROM columns; DELETE FROM boards; DELETE FROM user;");
+    sqlite.run("DROP TRIGGER IF EXISTS fail_column_reorder");
+    sqlite.run("DELETE FROM cards; DELETE FROM columns; DELETE FROM boards; DELETE FROM user;");
 
     const now = Math.floor(Date.now() / 1000);
     sqlite.query("INSERT INTO user (id, name, email, created_at, updated_at, email_verified) VALUES (?, ?, ?, ?, ?, ?)")
@@ -142,7 +142,7 @@ describe("transactional ordering", () => {
     });
 
     test("rolls back every position when a reorder update fails", () => {
-        sqlite.exec(`
+        sqlite.run(`
             CREATE TRIGGER fail_column_reorder
             BEFORE UPDATE OF "order" ON columns
             WHEN OLD.id = 10 AND NEW."order" <> OLD."order"

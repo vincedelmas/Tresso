@@ -16,7 +16,7 @@ import {authOptions, boardDetailsOptions} from "~/lib/client/react-query/query-o
 export const Route = createFileRoute("/_private/board/$boardId")({
     params: { parse: ({ boardId }) => ({ boardId: Number(boardId) }) },
     loader: ({ context: { queryClient }, params: { boardId } }) => {
-        return queryClient.ensureQueryData(boardDetailsOptions(boardId));
+        return queryClient.query({ ...boardDetailsOptions(boardId), staleTime: "static" });
     },
     component: BoardPage,
 })

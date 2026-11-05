@@ -20,7 +20,7 @@ import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, Di
 
 export const Route = createFileRoute("/_private/boards")({
     loader: ({ context: { queryClient } }) => {
-        return queryClient.ensureQueryData(boardsListOptions);
+        return queryClient.query({ ...boardsListOptions, staleTime: "static" });
     },
     component: BoardsPage,
 })
