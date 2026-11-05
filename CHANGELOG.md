@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/vincedelmas/Tresso/compare/v1.3.2...v1.3.3) (2026-11-05)
+
+
+### Bug Fixes
+
+* **deps:** release updated dependencies and API migrations ([803caa4](https://github.com/vincedelmas/Tresso/commit/803caa461bc0d1f5f9f7bb303910ed5562e87f9b))
+
 ## [1.3.2](https://github.com/vincedelmas/Tresso/compare/v1.3.1...v1.3.2) (2026-10-24)
 
 
