@@ -1,3 +1,4 @@
+import {RepositoryDetails} from "~/lib/client/components/board/RepositoryDetails";
 import {toast} from "~/lib/client/components/ui/toast";
 import {cn} from "~/lib/utils/utils";
 import React, {Ref, useState} from "react";
@@ -173,6 +174,7 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                             <h3 className="my-0 leading-5 whitespace-pre-wrap wrap-break-word text-foreground/90">
                                 {card.title}
                             </h3>
+                            {card.repository && <div className="mt-2"><RepositoryDetails repository={card.repository}/></div>}
                             <div className="mt-auto flex grow items-end">
                                 {card.content && <MessageSquareMore className="mt-2 text-muted-foreground"/>}
                             </div>
@@ -195,6 +197,7 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-52" onClick={stopCardClick} onPointerDown={stopCardClick}>
                             <DropdownMenuGroup>
+                                {card.repository && <DropdownMenuItem render={<a href={`https://github.com/${card.repository.fullName}`} target="_blank" rel="noreferrer"/>}>Open on GitHub ↗</DropdownMenuItem>}
                                 <DropdownMenuItem disabled={isPending} onClick={openEditDialog}>
                                     <Pencil/> Edit card
                                 </DropdownMenuItem>

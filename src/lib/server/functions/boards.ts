@@ -40,7 +40,7 @@ export const getBoard = createServerFn({ method: "GET" })
                 columns: { orderBy: asc(s.columns.order) },
                 cards: {
                     orderBy: asc(s.cards.order),
-                    with: { labels: { with: { label: true } } },
+                    with: { labels: { with: { label: true } }, repository: true },
                 },
             },
         });
@@ -49,7 +49,13 @@ export const getBoard = createServerFn({ method: "GET" })
             throw notFound();
         }
 
+        const connection = await db.query.githubConnections.findFirst({
+            where: eq(s.githubConnections.boardId, boardId),
+            columns: { syncedAt: true },
+        });
+
         const board = {
+            github: connection ? { connected: true, syncedAt: connection.syncedAt } : null,
             ...boardData,
             cards: boardData.cards.map(card => ({
                 ...card,

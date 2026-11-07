@@ -1,6 +1,6 @@
 import {relations} from "drizzle-orm";
 import {user} from "~/lib/server/database/schemas/auth.schema";
-import {integer, primaryKey, sqliteTable, text} from "drizzle-orm/sqlite-core";
+import {integer, primaryKey, sqliteTable, text, uniqueIndex} from "drizzle-orm/sqlite-core";
 
 
 export const usersRelations = relations(user, ({ many }) => ({
@@ -69,6 +69,7 @@ export const cardsRelations = relations(cards, ({ many, one }) => ({
         references: [columns.id],
     }),
     labels: many(cardsToLabels),
+    repository: one(githubRepositories),
 }));
 
 
@@ -105,4 +106,27 @@ export const cardsToLabelsRelations = relations(cardsToLabels, ({ one }) => ({
         fields: [cardsToLabels.labelId],
         references: [labels.id],
     }),
+}));
+
+
+export const githubConnections = sqliteTable("github_connections", {
+    boardId: integer("board_id").primaryKey().references(() => boards.id, { onDelete: "cascade" }),
+    encryptedToken: text("encrypted_token").notNull(),
+    syncedAt: integer("synced_at", { mode: "timestamp" }),
+});
+
+export const githubRepositories = sqliteTable("github_repositories", {
+    cardId: integer("card_id").primaryKey().references(() => cards.id, { onDelete: "cascade" }),
+    boardId: integer("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
+    repositoryId: integer("repository_id").notNull(),
+    fullName: text("full_name").notNull(),
+    description: text("description"),
+    private: integer("private", { mode: "boolean" }).notNull(),
+    archived: integer("archived", { mode: "boolean" }).notNull(),
+    fork: integer("fork", { mode: "boolean" }).notNull(),
+    language: text("language"),
+}, (table) => [uniqueIndex("github_repositories_board_repository").on(table.boardId, table.repositoryId)]);
+
+export const githubRepositoriesRelations = relations(githubRepositories, ({ one }) => ({
+    card: one(cards, { fields: [githubRepositories.cardId], references: [cards.id] }),
 }));

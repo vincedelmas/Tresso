@@ -15,6 +15,13 @@
       "when": 1781456439261,
       "tag": "0001_mean_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794059158860,
+      "tag": "0002_smiling_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

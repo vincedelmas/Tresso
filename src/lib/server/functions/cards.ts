@@ -157,7 +157,7 @@ export const createCard = createServerFn({ method: "POST" })
                 .where(eq(s.boards.id, data.boardId))
                 .run();
 
-            return { ...newCard, labels: [] };
+            return { ...newCard, labels: [], repository: null };
         }, { behavior: "immediate" });
     });
 

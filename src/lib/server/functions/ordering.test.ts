@@ -1,6 +1,6 @@
-import {afterAll, beforeEach, describe, expect, test} from "bun:test";
+import {afterAll, beforeEach, describe, expect, test, spyOn} from "bun:test";
 import Database from "bun:sqlite";
-import {unlinkSync} from "node:fs";
+import {readFileSync, unlinkSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 
@@ -50,6 +50,10 @@ sqlite.run(`
         column_id INTEGER NOT NULL REFERENCES columns(id) ON DELETE CASCADE
     );
 `);
+
+sqlite.run(readFileSync(new URL("../../../../drizzle/0002_smiling_mister_sinister.sql", import.meta.url), "utf8"));
+const {syncGithubRepositoriesForUser} = await import("~/lib/server/functions/github");
+const {encryptGithubToken, decryptGithubToken} = await import("~/lib/utils/github-token");
 
 const {moveColumnForUser} = await import("~/lib/server/functions/columns");
 const {moveCardForUser} = await import("~/lib/server/functions/cards");
@@ -157,5 +161,65 @@ describe("transactional ordering", () => {
             { id: 11, order: 20 },
             { id: 12, order: 30 },
         ]);
+    });
+});
+
+
+describe("GitHub repository sync", () => {
+    const repo = { id: 42, full_name: "owner/repository", description: "GitHub description", private: true, archived: false, fork: false, language: "TypeScript" };
+
+    test("encrypts tokens with unique nonces and rejects tampering", () => {
+        const encrypted = encryptGithubToken("private-token");
+        expect(encrypted).not.toContain("private-token");
+        expect(decryptGithubToken(encrypted)).toBe("private-token");
+        expect(encryptGithubToken("private-token")).not.toBe(encrypted);
+        const bytes = Buffer.from(encrypted, "base64");
+        bytes[bytes.length - 1] ^= 1;
+        expect(() => decryptGithubToken(bytes.toString("base64"))).toThrow();
+    });
+
+    test("imports once, refreshes metadata, and preserves organization and notes", async () => {
+        sqlite.query("INSERT INTO github_connections (board_id, encrypted_token) VALUES (?, ?)").run(1, encryptGithubToken("token"));
+        const fetchMock = spyOn(globalThis, "fetch").mockResolvedValue(Response.json([repo]));
+        try {
+            expect(await syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [42] }, 1))
+                .toEqual({ imported: 1, refreshed: 0, unavailable: 0 });
+            const linked = sqlite.query("SELECT card_id FROM github_repositories WHERE repository_id = 42").get() as { card_id: number };
+            const inbox = sqlite.query("SELECT name FROM columns WHERE id = (SELECT column_id FROM cards WHERE id = ?)").get(linked.card_id);
+            expect(inbox).toEqual({ name: "Inbox" });
+            sqlite.query("UPDATE cards SET title = 'Custom title', content = 'My notes', column_id = 11, \"order\" = 99 WHERE id = ?").run(linked.card_id);
+            fetchMock.mockResolvedValue(Response.json([{ ...repo, full_name: "owner/renamed", description: "New description", archived: true }]));
+            expect(await syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [42] }, 1))
+                .toEqual({ imported: 0, refreshed: 1, unavailable: 0 });
+            expect(sqlite.query('SELECT title, content, column_id, "order" FROM cards WHERE id = ?').get(linked.card_id))
+                .toEqual({ title: "Custom title", content: "My notes", column_id: 11, order: 99 });
+            expect(sqlite.query("SELECT full_name, description, archived FROM github_repositories WHERE card_id = ?").get(linked.card_id))
+                .toEqual({ full_name: "owner/renamed", description: "New description", archived: 1 });
+
+            fetchMock.mockResolvedValue(Response.json([]));
+            expect(await syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [] }, 1))
+                .toEqual({ imported: 0, refreshed: 0, unavailable: 1 });
+            expect(sqlite.query("SELECT COUNT(*) AS count FROM github_repositories").get()).toEqual({ count: 1 });
+        } finally { fetchMock.mockRestore(); }
+    });
+
+    test("rejects access to another user's board before contacting GitHub", async () => {
+        const fetchMock = spyOn(globalThis, "fetch");
+        try {
+            await expect(syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [] }, 2)).rejects.toMatchObject({ isNotFound: true });
+            expect(fetchMock).not.toHaveBeenCalled();
+        } finally { fetchMock.mockRestore(); }
+    });
+
+    test("does not write cards after a partial pagination failure", async () => {
+        sqlite.query("INSERT INTO github_connections (board_id, encrypted_token) VALUES (?, ?)").run(1, encryptGithubToken("token"));
+        const fetchMock = spyOn(globalThis, "fetch")
+            .mockResolvedValueOnce(Response.json(Array.from({ length: 100 }, (_, id) => ({ ...repo, id: id + 1 }))))
+            .mockResolvedValueOnce(new Response("", { status: 403 }));
+        try {
+            await expect(syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [42] }, 1)).rejects.toThrow("GitHub denied access");
+            expect(sqlite.query("SELECT COUNT(*) AS count FROM github_repositories").get()).toEqual({ count: 0 });
+            expect(sqlite.query("SELECT synced_at FROM github_connections WHERE board_id = 1").get()).toEqual({ synced_at: null });
+        } finally { fetchMock.mockRestore(); }
     });
 });

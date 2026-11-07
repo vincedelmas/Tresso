@@ -1,3 +1,4 @@
+import {RepositoryDetails} from "~/lib/client/components/board/RepositoryDetails";
 import {CardType} from "~/lib/types/types";
 import {LoaderCircle, X} from "lucide-react";
 import React, {useRef, useState} from "react";
@@ -67,6 +68,7 @@ export function EditCardDialog({ card, isDialogOpen, setDialogOpen }: EditCardDi
                 </DialogHeader>
 
                 <div className="flex flex-col gap-6 py-1">
+                    {card.repository && <RepositoryDetails repository={card.repository} showLink/>}
                     <div className="flex flex-col gap-2">
                         <Label htmlFor="title">Title</Label>
                         <EditableText
@@ -82,7 +84,7 @@ export function EditCardDialog({ card, isDialogOpen, setDialogOpen }: EditCardDi
                         />
                     </div>
                     <div className="flex flex-col gap-2">
-                        <Label htmlFor="content">Description</Label>
+                        <Label htmlFor="content">{card.repository ? "Personal notes" : "Description"}</Label>
                         {isEditingContent ?
                             <div className="flex flex-col gap-2">
                                 <Textarea

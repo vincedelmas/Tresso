@@ -93,3 +93,29 @@ bun run dev
 ```
 
 The application will be available at [http://localhost:3000](http://localhost:3000).
+
+### GitHub repository boards
+
+Open a board and choose **GitHub** to connect a fine-grained personal access token.
+Give the token read-only **Metadata** access to the repositories you want to organize.
+GitHub only returns repositories the token can access, including private repositories;
+organization policies and token resource-owner selection may limit that list.
+
+Load repositories, select them, and import them into **Inbox**. Move the linked cards
+between columns and assign labels as usual. Repository descriptions and
+Public/Private, Archived, Fork, and language badges are synced separately from your
+card titles and personal notes. Use the board search and Private/Archived filters
+to narrow the view.
+
+**Refresh imported** updates metadata without moving cards or replacing titles,
+notes, or labels. Repeated imports do not duplicate repositories on the same board.
+New repositories must be selected for import. Repositories no longer returned by
+GitHub keep their cards and last known metadata; the refresh result reports them.
+Deleting a card removes its link, so it can be imported again.
+
+Apply the schema update with `bun run dk push` before using the feature.
+Tokens are encrypted in the database with AES-256-GCM using a key derived from
+`BETTER_AUTH_SECRET` and are never included in board responses. Keep that secret
+stable; after changing it, replace saved GitHub tokens. **Remove saved token** stops
+access to GitHub while keeping imported cards and metadata. Sync is manual and
+does not change anything on GitHub.
