@@ -39,6 +39,7 @@ export interface BoardFilters {
     publicOnly: boolean;
     privateOnly: boolean;
     archivedOnly: boolean;
+    forkOnly: boolean;
 }
 
 
@@ -48,4 +49,5 @@ export const DEFAULT_BOARD_FILTERS: BoardFilters = {
     publicOnly: false,
     privateOnly: false,
     archivedOnly: false,
+    forkOnly: false,
 };

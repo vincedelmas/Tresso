@@ -92,6 +92,7 @@ function BoardPage() {
             if (boardData.github) {
                 const repo = card.repository;
                 if (filters.archivedOnly && !repo?.archived) continue;
+                if (filters.forkOnly && !repo?.fork) continue;
 
                 if (filters.publicOnly || filters.privateOnly) {
                     if (!repo || !(repo.private ? filters.privateOnly : filters.publicOnly)) continue;

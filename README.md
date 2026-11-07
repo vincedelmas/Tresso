@@ -128,8 +128,8 @@ does not change anything on GitHub.
 
 Every board includes search across card titles, notes, and labels, plus a label
 filter. Selecting several labels shows cards matching any of them. Connected
-GitHub boards also include Public, Private, and Archived filters; Public and
-Private combine as alternatives, while Archived narrows either visibility.
+GitHub boards also include Public, Private, Archived, and Fork filters; Public and
+Private combine as alternatives, while Archived and Fork narrow either visibility.
 
 Choose **Select cards** to select individual cards or **Select visible** to select
 all cards matching the current filters. Use **Add label** to apply an existing

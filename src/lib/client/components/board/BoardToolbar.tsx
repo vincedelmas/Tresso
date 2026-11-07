@@ -71,13 +71,14 @@ export function BoardToolbar({
     const allVisibleSelected = visibleCardIds.length > 0 && visibleCardIds.every(id => selectedIds.has(id));
     const hasFilters = Boolean(
         filters.search || filters.labelIds.length > 0 ||
-        (board.github && (filters.publicOnly || filters.privateOnly || filters.archivedOnly))
+        (board.github && (filters.publicOnly || filters.privateOnly || filters.archivedOnly || filters.forkOnly))
     );
 
     const repositoryFilters = [
         { key: "publicOnly", label: "Public" },
         { key: "privateOnly", label: "Private" },
         { key: "archivedOnly", label: "Archived" },
+        { key: "forkOnly", label: "Fork" },
     ] as const;
 
     return (
