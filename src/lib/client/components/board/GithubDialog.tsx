@@ -73,10 +73,7 @@ function GithubSettings({ board }: GithubDialogProps) {
         setSelected([]);
         toast.add({
             type: "success",
-            title: `${result.imported} imported, ${result.refreshed} refreshed`,
-            description: result.unavailable
-                ? `${result.unavailable} repos were not returned by GitHub; their cards were kept.`
-                : undefined,
+            title: `${result.imported} imported, ${result.refreshed} refreshed, ${result.removed} removed`,
         });
     };
 
@@ -213,7 +210,7 @@ function GithubSettings({ board }: GithubDialogProps) {
                                             />
                                             <FieldLabel htmlFor={checkboxId} className="min-w-0 flex-wrap">
                                                 <span className="break-all">
-                                                    {repo.fullName}
+                                                    {repo.fullName.split("/")[1]}
                                                 </span>
                                                 {repo.private &&
                                                     <Badge variant="secondary">

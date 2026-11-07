@@ -51,16 +51,32 @@ sqlite.run(`
     );
 `);
 
+sqlite.run(`
+    CREATE TABLE labels (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE
+    );
+    CREATE TABLE cards_to_labels (
+        card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+        label_id INTEGER NOT NULL REFERENCES labels(id) ON DELETE CASCADE,
+        PRIMARY KEY (card_id, label_id)
+    );
+`);
+
 sqlite.run(readFileSync(new URL("../../../../drizzle/0002_smiling_mister_sinister.sql", import.meta.url), "utf8"));
 const {syncGithubRepositoriesForUser} = await import("~/lib/server/functions/github");
 const {encryptGithubToken, decryptGithubToken} = await import("~/lib/utils/github-token");
 
 const {moveColumnForUser} = await import("~/lib/server/functions/columns");
-const {moveCardForUser} = await import("~/lib/server/functions/cards");
+const {bulkUpdateCardsForUser, moveCardForUser} = await import("~/lib/server/functions/cards");
 
 
 beforeEach(() => {
     sqlite.run("DROP TRIGGER IF EXISTS fail_column_reorder");
+    sqlite.run("DROP TRIGGER IF EXISTS fail_bulk_move");
     sqlite.run("DELETE FROM cards; DELETE FROM columns; DELETE FROM boards; DELETE FROM user;");
 
     const now = Math.floor(Date.now() / 1000);
@@ -195,7 +211,7 @@ describe("GitHub repository sync", () => {
 
         try {
             expect(await syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [42] }, 1))
-                .toEqual({ imported: 1, refreshed: 0, unavailable: 0 });
+                .toEqual({ imported: 1, refreshed: 0, removed: 0 });
 
             const linked = sqlite.query("SELECT card_id FROM github_repositories WHERE repository_id = 42").get() as { card_id: number };
             const inbox = sqlite.query("SELECT name FROM columns WHERE id = (SELECT column_id FROM cards WHERE id = ?)").get(linked.card_id);
@@ -204,17 +220,62 @@ describe("GitHub repository sync", () => {
 
             fetchMock.mockResolvedValue(Response.json([{ ...repo, full_name: "owner/renamed", description: "New description", archived: true }]));
             expect(await syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [42] }, 1))
-                .toEqual({ imported: 0, refreshed: 1, unavailable: 0 });
+                .toEqual({ imported: 0, refreshed: 1, removed: 0 });
             expect(sqlite.query('SELECT title, content, column_id, "order" FROM cards WHERE id = ?').get(linked.card_id))
                 .toEqual({ title: "Custom title", content: "My notes", column_id: 11, order: 99 });
             expect(sqlite.query("SELECT full_name, description, archived FROM github_repositories WHERE card_id = ?").get(linked.card_id))
                 .toEqual({ full_name: "owner/renamed", description: "New description", archived: 1 });
 
 
-            fetchMock.mockResolvedValue(Response.json([]));
+            fetchMock
+                .mockResolvedValueOnce(Response.json([]))
+                .mockResolvedValueOnce(new Response("", { status: 404 }));
             expect(await syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [] }, 1))
-                .toEqual({ imported: 0, refreshed: 0, unavailable: 1 });
-            expect(sqlite.query("SELECT COUNT(*) AS count FROM github_repositories").get()).toEqual({ count: 1 });
+                .toEqual({ imported: 0, refreshed: 0, removed: 1 });
+            expect(sqlite.query("SELECT COUNT(*) AS count FROM github_repositories").get()).toEqual({ count: 0 });
+            expect(sqlite.query("SELECT id FROM cards WHERE id = ?").get(linked.card_id)).toBeNull();
+        }
+        finally {
+            fetchMock.mockRestore();
+        }
+    });
+
+    test("keeps and refreshes a repository found by ID after it disappears from the list", async () => {
+        sqlite.query("INSERT INTO github_connections (board_id, encrypted_token) VALUES (?, ?)").run(1, encryptGithubToken("token"));
+        const fetchMock = spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json([repo]));
+
+        try {
+            await syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [42] }, 1);
+            fetchMock
+                .mockResolvedValueOnce(Response.json([]))
+                .mockResolvedValueOnce(Response.json({ ...repo, full_name: "new-owner/renamed" }));
+
+            expect(await syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [] }, 1))
+                .toEqual({ imported: 0, refreshed: 1, removed: 0 });
+            expect(fetchMock.mock.calls.at(-1)?.[0]).toBe("https://api.github.com/repositories/42");
+            expect(sqlite.query("SELECT full_name FROM github_repositories WHERE repository_id = 42").get())
+                .toEqual({ full_name: "new-owner/renamed" });
+        }
+        finally {
+            fetchMock.mockRestore();
+        }
+    });
+
+    test("does not delete any cards if a missing-repository lookup fails", async () => {
+        sqlite.query("INSERT INTO github_connections (board_id, encrypted_token) VALUES (?, ?)").run(1, encryptGithubToken("token"));
+        const fetchMock = spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json([repo, { ...repo, id: 43 }]));
+
+        try {
+            await syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [42, 43] }, 1);
+
+            for (const status of [403, 500]) {
+                fetchMock
+                    .mockResolvedValueOnce(Response.json([]))
+                    .mockResolvedValueOnce(new Response("", { status: 404 }))
+                    .mockResolvedValueOnce(new Response("", { status }));
+                await expect(syncGithubRepositoriesForUser({ boardId: 1, repositoryIds: [] }, 1)).rejects.toThrow();
+                expect(sqlite.query("SELECT COUNT(*) AS count FROM github_repositories").get()).toEqual({ count: 2 });
+            }
         }
         finally {
             fetchMock.mockRestore();
@@ -247,5 +308,101 @@ describe("GitHub repository sync", () => {
         finally {
             fetchMock.mockRestore();
         }
+    });
+});
+
+
+
+describe("bulk card actions", () => {
+    test("moves a selection to the top in board order and normalizes affected columns", () => {
+        bulkUpdateCardsForUser({
+            action: "move",
+            boardId: 1,
+            cardIds: [201, 102, 100],
+            columnId: 11,
+        }, 1);
+
+        expect(sqlite.query('SELECT id, column_id, "order" FROM cards WHERE board_id = 1 ORDER BY column_id, "order"').all())
+            .toEqual([
+                { id: 101, column_id: 10, order: 0 },
+                { id: 100, column_id: 11, order: 0 },
+                { id: 102, column_id: 11, order: 1 },
+                { id: 201, column_id: 11, order: 2 },
+                { id: 200, column_id: 11, order: 3 },
+            ]);
+        expect(sqlite.query('SELECT column_id, "order" FROM cards WHERE id = 300').get())
+            .toEqual({ column_id: 20, order: 10 });
+    });
+
+    test("rejects foreign cards, columns, and users without moving any cards", () => {
+        const before = sqlite.query("SELECT * FROM cards ORDER BY id").all();
+
+        for (const data of [
+            { action: "move" as const, boardId: 1, cardIds: [100, 300], columnId: 11 },
+            { action: "move" as const, boardId: 1, cardIds: [100, 101], columnId: 20 },
+        ]) {
+            expect(() => bulkUpdateCardsForUser(data, 1)).toThrow();
+        }
+
+        expect(() => bulkUpdateCardsForUser({ action: "move", boardId: 1, cardIds: [100], columnId: 11 }, 2)).toThrow();
+        expect(sqlite.query("SELECT * FROM cards ORDER BY id").all()).toEqual(before);
+    });
+
+    test("adds a label to all selected cards without duplicating existing labels", () => {
+        sqlite.run("INSERT INTO labels (id, name, color, created_at, board_id) VALUES (1, 'Maintained', '#aabbcc', 1, 1)");
+        sqlite.run("INSERT INTO cards_to_labels (card_id, label_id) VALUES (100, 1)");
+
+        bulkUpdateCardsForUser({ action: "label", boardId: 1, cardIds: [100, 101, 200], labelId: 1 }, 1);
+        bulkUpdateCardsForUser({ action: "label", boardId: 1, cardIds: [100, 101, 200], labelId: 1 }, 1);
+
+        expect(sqlite.query("SELECT card_id, label_id FROM cards_to_labels ORDER BY card_id").all()).toEqual([
+            { card_id: 100, label_id: 1 },
+            { card_id: 101, label_id: 1 },
+            { card_id: 200, label_id: 1 },
+        ]);
+    });
+
+    test("removes only the requested label from selected cards and tolerates missing labels", () => {
+        sqlite.run("INSERT INTO labels (id, name, color, created_at, board_id) VALUES (1, 'Maintained', '#aabbcc', 1, 1), (2, 'Work', '#aabbcc', 1, 1)");
+        sqlite.run("INSERT INTO cards_to_labels (card_id, label_id) VALUES (100, 1), (100, 2), (101, 1), (200, 1)");
+
+        bulkUpdateCardsForUser({ action: "remove-label", boardId: 1, cardIds: [100, 101, 102], labelId: 1 }, 1);
+        bulkUpdateCardsForUser({ action: "remove-label", boardId: 1, cardIds: [100, 101, 102], labelId: 1 }, 1);
+
+        expect(sqlite.query("SELECT card_id, label_id FROM cards_to_labels ORDER BY card_id, label_id").all()).toEqual([
+            { card_id: 100, label_id: 2 },
+            { card_id: 200, label_id: 1 },
+        ]);
+    });
+
+    test("rejects foreign cards, labels, and users before removing labels", () => {
+        sqlite.run("INSERT INTO labels (id, name, color, created_at, board_id) VALUES (1, 'Own', '#aabbcc', 1, 1), (2, 'Foreign', '#aabbcc', 1, 2)");
+        sqlite.run("INSERT INTO cards_to_labels (card_id, label_id) VALUES (100, 1), (300, 2)");
+        const before = sqlite.query("SELECT * FROM cards_to_labels ORDER BY card_id").all();
+
+        expect(() => bulkUpdateCardsForUser({ action: "remove-label", boardId: 1, cardIds: [100, 300], labelId: 1 }, 1)).toThrow();
+        expect(() => bulkUpdateCardsForUser({ action: "remove-label", boardId: 1, cardIds: [100], labelId: 2 }, 1)).toThrow();
+        expect(() => bulkUpdateCardsForUser({ action: "remove-label", boardId: 1, cardIds: [100], labelId: 1 }, 2)).toThrow();
+        expect(sqlite.query("SELECT * FROM cards_to_labels ORDER BY card_id").all()).toEqual(before);
+    });
+
+    test("rejects foreign labels or cards without partially applying a label", () => {
+        sqlite.run("INSERT INTO labels (id, name, color, created_at, board_id) VALUES (1, 'Own', '#aabbcc', 1, 1), (2, 'Foreign', '#aabbcc', 1, 2)");
+
+        expect(() => bulkUpdateCardsForUser({ action: "label", boardId: 1, cardIds: [100, 101], labelId: 2 }, 1)).toThrow();
+        expect(() => bulkUpdateCardsForUser({ action: "label", boardId: 1, cardIds: [100, 300], labelId: 1 }, 1)).toThrow();
+        expect(sqlite.query("SELECT * FROM cards_to_labels").all()).toEqual([]);
+    });
+
+    test("rolls back every card when a bulk move fails midway", () => {
+        const before = sqlite.query("SELECT * FROM cards ORDER BY id").all();
+        sqlite.run(`
+            CREATE TRIGGER fail_bulk_move BEFORE UPDATE ON cards
+            WHEN NEW.id = 102
+            BEGIN SELECT RAISE(FAIL, 'injected failure'); END;
+        `);
+
+        expect(() => bulkUpdateCardsForUser({ action: "move", boardId: 1, cardIds: [100, 102], columnId: 11 }, 1)).toThrow();
+        expect(sqlite.query("SELECT * FROM cards ORDER BY id").all()).toEqual(before);
     });
 });

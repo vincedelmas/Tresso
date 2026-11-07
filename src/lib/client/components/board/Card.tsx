@@ -1,14 +1,16 @@
+import {getCardTitle} from "~/lib/utils/card-title";
 import {cn} from "~/lib/utils/utils";
 import React, {Ref, useState} from "react";
 import {toast} from "~/lib/client/components/ui/toast";
 import {Badge} from "~/lib/client/components/ui/badge";
 import {Button} from "~/lib/client/components/ui/button";
+import {Checkbox} from "~/lib/client/components/ui/checkbox";
 import {EditCardDialog} from "~/lib/client/components/edit-card/EditCardDialog";
 import {RepoDetails} from "~/lib/client/components/board/RepoDetails";
 import {DeleteConfirmationDialog} from "~/lib/client/components/DeleteConfirmationDialog";
-import {CardTransferType, CardType, ColumnWithCards, CONTENT_TYPES} from "~/lib/types/types";
+import {CardSelection, CardTransferType, CardType, ColumnWithCards, CONTENT_TYPES} from "~/lib/types/types";
 import {useDeleteCardMutation, useMoveCardMutation} from "~/lib/client/react-query/mutations";
-import {ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Ellipsis, ExternalLink, MessageSquareMore, Pencil, Trash2} from "lucide-react";
+import {ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, CheckSquare, Ellipsis, ExternalLink, MessageSquareMore, Pencil, Trash2} from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -23,7 +25,9 @@ import {
 
 
 interface CardProps {
-    card: CardType,
+    card: CardType;
+    selection: CardSelection | null;
+    onSelectCard: (cardId: number) => void;
     columnId: number;
     nextCardId?: number;
     ref: Ref<HTMLLIElement>;
@@ -32,7 +36,8 @@ interface CardProps {
 }
 
 
-export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref }: CardProps) => {
+export const Card = ({ card, selection, onSelectCard, columns, columnId, nextCardId, previousCardId, ref }: CardProps) => {
+    const title = getCardTitle(card);
     const moveCardMutation = useMoveCardMutation(card.boardId);
     const deleteCardMutation = useDeleteCardMutation(card.boardId);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -74,13 +79,18 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
     const onDragStartHandler = (ev: React.DragEvent) => {
         ev.dataTransfer.effectAllowed = "move";
 
-        const data: CardTransferType = { id: card.id, title: card.title };
+        const data: CardTransferType = { id: card.id, title: title };
         ev.dataTransfer.setData(CONTENT_TYPES.card, JSON.stringify(data));
 
         ev.stopPropagation();
     };
 
     const openEditDialog = () => {
+        if (selection) {
+            if (!selection.isPending) selection.onToggle(card.id);
+            return;
+        }
+
         setIsEditDialogOpen(true);
     };
 
@@ -148,17 +158,31 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                 )}
             >
                 <div
-                    draggable={!isPending}
+                    draggable={!isPending && !selection}
                     onDragStart={onDragStartHandler}
-                    className="group relative min-h-16 rounded-lg bg-background/75 text-sm ring-1 ring-foreground/8 transition-colors
-                    hover:bg-background"
+                    className={cn(
+                        "group relative min-h-16 rounded-lg bg-background/75 text-sm ring-1 ring-foreground/8 transition-colors hover:bg-background",
+                        selection?.selectedIds.has(card.id) && "bg-accent ring-2 ring-ring",
+                    )}
                 >
+                    {selection && (
+                        <Checkbox
+                            className="absolute top-3.5 left-3"
+                            aria-label={`Select ${title}`}
+                            checked={selection.selectedIds.has(card.id)}
+                            disabled={selection.isPending}
+                            onCheckedChange={() => selection.onToggle(card.id)}
+                        />
+                    )}
                     <Button
                         type="button"
                         variant="ghost"
                         onClick={openEditDialog}
-                        className="block h-auto min-h-16 w-full rounded-lg px-3 py-3 pr-9 text-left font-normal whitespace-normal
-                        hover:bg-transparent focus-visible:ring-2"
+                        disabled={selection?.isPending}
+                        className={cn(
+                            "block h-auto min-h-16 w-full rounded-lg px-3 py-3 pr-9 text-left font-normal whitespace-normal hover:bg-transparent focus-visible:ring-2",
+                            selection && "pl-10",
+                        )}
                     >
                         <div className="flex h-full flex-col">
                             {card.labels.length > 0 &&
@@ -176,7 +200,7 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                             }
 
                             <h3 className="my-0 leading-5 whitespace-pre-wrap wrap-break-word text-foreground/90">
-                                {card.title}
+                                {title}
                             </h3>
 
                             {card.repository &&
@@ -203,6 +227,7 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                                     size="icon-sm"
                                     variant="ghost"
                                     title="Card options"
+                                    disabled={!!selection}
                                     onClick={(ev) => ev.stopPropagation()}
                                     onPointerDown={(ev) => ev.stopPropagation()}
                                     className="absolute top-1.5 right-1.5 text-muted-foreground"
@@ -226,6 +251,9 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                                         <ExternalLink/> Open on GitHub
                                     </DropdownMenuItem>
                                 }
+                                <DropdownMenuItem disabled={isPending} onClick={() => onSelectCard(card.id)}>
+                                    <CheckSquare/> Select card
+                                </DropdownMenuItem>
                                 <DropdownMenuItem disabled={isPending} onClick={openEditDialog}>
                                     <Pencil/> Edit card
                                 </DropdownMenuItem>
@@ -289,7 +317,7 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                 onConfirm={onDeleteHandler}
                 onOpenChange={setIsDeleteDialogOpen}
                 isPending={deleteCardMutation.isPending}
-                description={`“${card.title}” will be permanently deleted.`}
+                description={`“${title}” will be permanently deleted.`}
             />
         </>
     );

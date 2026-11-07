@@ -109,8 +109,11 @@ to narrow the view.
 
 **Refresh imported** updates metadata without moving cards or replacing titles,
 notes, or labels. Repeated imports do not duplicate repositories on the same board.
-New repositories must be selected for import. Repositories no longer returned by
-GitHub keep their cards and last known metadata; the refresh result reports them.
+New repositories must be selected for import. Repositories missing from the list are checked individually by their stable GitHub
+ID. A 404 removes the linked card and its notes and labels. GitHub also returns
+404 for repositories the token can no longer access, so those cards are removed
+too. Network errors, rate limits, and server errors abort refresh without removing
+cards. The refresh result reports how many cards were removed.
 Deleting a card removes its link, so it can be imported again.
 
 Apply the schema update with `bun run dk push` before using the feature.
@@ -119,3 +122,19 @@ Tokens are encrypted in the database with AES-256-GCM using a key derived from
 stable; after changing it, replace saved GitHub tokens. **Remove saved token** stops
 access to GitHub while keeping imported cards and metadata. Sync is manual and
 does not change anything on GitHub.
+
+
+### Board search, filters, and bulk actions
+
+Every board includes search across card titles, notes, and labels, plus a label
+filter. Selecting several labels shows cards matching any of them. Connected
+GitHub boards also include Public, Private, and Archived filters; Public and
+Private combine as alternatives, while Archived narrows either visibility.
+
+Choose **Select cards** to select individual cards or **Select visible** to select
+all cards matching the current filters. Use **Add label** to apply an existing
+label to the selection, **Remove label** to remove a label from selected cards, or **Move to** to move selected cards to the top of a
+column in their current board order. Existing labels and notes are preserved.
+
+Selections persist when filters change. The toolbar reports selected cards hidden
+by filters, and bulk actions include them. **Done selecting** clears the selection.

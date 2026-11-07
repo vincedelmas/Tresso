@@ -65,12 +65,32 @@ export const syncGithubRepositoriesForUser = createServerOnlyFn(async (data: z.i
         throw new FormattedError("Connect a GitHub token first.");
     }
 
-    const repositories = await fetchGithubRepositories(decryptGithubToken(connection.encryptedToken));
+    const token = decryptGithubToken(connection.encryptedToken);
+    const repositories = await fetchGithubRepositories(token);
     const selected = new Set(data.repositoryIds);
     const accessibleIds = new Set(repositories.map(repo => repo.repositoryId));
 
     if (data.repositoryIds.some(id => !accessibleIds.has(id))) {
         throw new FormattedError("Some selected repositories are no longer accessible. Reload the repository list.");
+    }
+
+    const linkedRepositories = await db.query.githubRepositories.findMany({
+        where: eq(s.githubRepositories.boardId, data.boardId),
+    });
+    const missingIds = new Set<number>();
+
+    // Look up missing repos by stable ID so renames and transfers do not remove their cards.
+    // GitHub also returns 404 for repositories the token can no longer access.
+    for (const linked of linkedRepositories) {
+        if (accessibleIds.has(linked.repositoryId)) continue;
+
+        const found = await fetchGithubRepositories(token, linked.repositoryId);
+        if (found.length) {
+            repositories.push(...found);
+        }
+        else {
+            missingIds.add(linked.repositoryId);
+        }
     }
 
     return db.transaction(tx => {
@@ -156,7 +176,7 @@ export const syncGithubRepositoriesForUser = createServerOnlyFn(async (data: z.i
                     .values({
                         boardId: data.boardId,
                         columnId: inbox.id,
-                        title: repo.fullName,
+                        title: repo.fullName.split("/")[1],
                         order: order++,
                     })
                     .returning()
@@ -168,6 +188,18 @@ export const syncGithubRepositoriesForUser = createServerOnlyFn(async (data: z.i
 
                 imported++;
             }
+        }
+
+        let removed = 0;
+
+        for (const linked of existing) {
+            if (!missingIds.has(linked.repositoryId)) continue;
+
+            tx.delete(s.cards)
+                .where(and(eq(s.cards.id, linked.cardId), eq(s.cards.boardId, data.boardId)))
+                .run();
+
+            removed++;
         }
 
         const now = new Date();
@@ -182,7 +214,7 @@ export const syncGithubRepositoriesForUser = createServerOnlyFn(async (data: z.i
             .where(eq(s.boards.id, data.boardId))
             .run();
 
-        return { imported, refreshed, unavailable: existing.length - refreshed };
+        return { imported, refreshed, removed };
     }, { behavior: "immediate" });
 });
 

@@ -23,3 +23,11 @@ export type CardType = BoardType["cards"][number];
 export type CardLabel = CardType["labels"][number];
 export type ColumnWithCards = BoardType["columns"][number] & { cards: BoardType["cards"] };
 export type BoardType = Awaited<ReturnType<NonNullable<ReturnType<typeof boardDetailsOptions>["queryFn"]>>>;
+
+
+
+export interface CardSelection {
+    selectedIds: ReadonlySet<number>;
+    isPending: boolean;
+    onToggle: (cardId: number) => void;
+}

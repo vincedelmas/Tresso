@@ -1,3 +1,4 @@
+import {getCardTitle} from "~/lib/utils/card-title";
 import {RepoDetails} from "~/lib/client/components/board/RepoDetails";
 import {CardType} from "~/lib/types/types";
 import {LoaderCircle, X} from "lucide-react";
@@ -21,6 +22,7 @@ interface EditCardDialogProps {
 
 
 export function EditCardDialog({ card, isDialogOpen, setDialogOpen }: EditCardDialogProps) {
+    const title = getCardTitle(card);
     const dialogRef = useRef(null);
     const titleEditState = useState(false);
     const [newContent, setNewContent] = useState(card.content || "");
@@ -79,7 +81,7 @@ export function EditCardDialog({ card, isDialogOpen, setDialogOpen }: EditCardDi
                             inputClass="min-h-24 w-full resize-y bg-input/30 px-3 py-2 text-base"
                             buttonClass="h-auto min-h-10 w-full justify-start bg-input/20 px-3 py-2 text-left text-base leading-6 whitespace-pre-wrap ring-1 ring-foreground/8 hover:bg-input/35"
                             value={(updateCardTitleMutation.isPending && updateCardTitleMutation.variables.data.title) ?
-                                updateCardTitleMutation.variables.data.title : card.title
+                                updateCardTitleMutation.variables.data.title : title
                             }
                         />
                     </div>

@@ -76,6 +76,17 @@ export const moveCardSchema = z.discriminatedUnion("placement", [
     moveCardBaseSchema.extend({ placement: z.literal("after"), targetCardId: positiveIdSchema }),
 ]);
 
+const selectedCardsSchema = z.object({
+    boardId: positiveIdSchema,
+    cardIds: z.array(positiveIdSchema).min(1).max(10_000).transform(ids => [...new Set(ids)]),
+});
+
+export const bulkUpdateCardsSchema = z.discriminatedUnion("action", [
+    selectedCardsSchema.extend({ action: z.literal("move"), columnId: positiveIdSchema }),
+    selectedCardsSchema.extend({ action: z.literal("label"), labelId: positiveIdSchema }),
+    selectedCardsSchema.extend({ action: z.literal("remove-label"), labelId: positiveIdSchema }),
+]);
+
 export const deleteCardSchema = cardSchema.pick({ id: true });
 
 export const updateCardTitleSchema = cardSchema.pick({ id: true, title: true });

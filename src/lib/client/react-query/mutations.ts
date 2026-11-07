@@ -5,7 +5,7 @@ import {createLabel, deleteLabel, updateLabel} from "~/lib/server/functions/labe
 import {boardDetailsOptions, boardsListOptions} from "~/lib/client/react-query/query-options";
 import {disconnectGithub, listGithubRepos, syncGithubRepos} from "~/lib/server/functions/github";
 import {createColumn, deleteColumn, moveColumn, updateColumn} from "~/lib/server/functions/columns";
-import {addLabelToCard, createCard, deleteCard, moveCard, removeLabelFromCard, updateCardContent, updateCardTitle} from "~/lib/server/functions/cards";
+import {bulkUpdateCards, addLabelToCard, createCard, deleteCard, moveCard, removeLabelFromCard, updateCardContent, updateCardTitle} from "~/lib/server/functions/cards";
 
 
 const invalidateBoardsList = (queryClient: QueryClient) => {
@@ -351,6 +351,18 @@ export const useDisconnectGithubMutation = (boardId: number) => {
 
     return useMutation({
         mutationFn: disconnectGithub,
+        onSuccess: () => invalidateBoardDetails(queryClient, boardId),
+    });
+};
+
+
+// --- BULK CARDS -----------------------------------------------------------------
+
+export const useBulkUpdateCardsMutation = (boardId: number) => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: bulkUpdateCards,
         onSuccess: () => invalidateBoardDetails(queryClient, boardId),
     });
 };

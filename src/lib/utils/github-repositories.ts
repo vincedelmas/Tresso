@@ -13,14 +13,18 @@ type GithubRepo = {
 };
 
 
-export const fetchGithubRepositories = createServerOnlyFn(async (token: string) => {
+export const fetchGithubRepositories = createServerOnlyFn(async (token: string, repositoryId?: number) => {
     const repos = [];
 
     for (let page = 1; ; page += 1) {
         let response: Response;
 
         try {
-            response = await fetch(`https://api.github.com/user/repos?per_page=100&sort=full_name&direction=asc&page=${page}`, {
+            const path = repositoryId
+                ? `/repositories/${repositoryId}`
+                : `/user/repos?per_page=100&sort=full_name&direction=asc&page=${page}`;
+
+            response = await fetch(`https://api.github.com${path}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     "X-GitHub-Api-Version": "2026-03-10",
@@ -34,6 +38,10 @@ export const fetchGithubRepositories = createServerOnlyFn(async (token: string) 
             throw new FormattedError("Could not reach GitHub. Please try again.");
         }
 
+        if (repositoryId && response.status === 404) {
+            return [];
+        }
+
         if (!response.ok) {
             throw new FormattedError(response.status === 401
                 ? "GitHub rejected the token. Replace it with a valid personal access token."
@@ -42,7 +50,8 @@ export const fetchGithubRepositories = createServerOnlyFn(async (token: string) 
                     : "Could not retrieve repositories from GitHub. Please try again.");
         }
 
-        const batch = await response.json() as GithubRepo[];
+        const body = await response.json();
+        const batch = (repositoryId ? [body] : body) as GithubRepo[];
 
         repos.push(...batch.map(repo => ({
             fork: repo.fork,
@@ -54,7 +63,7 @@ export const fetchGithubRepositories = createServerOnlyFn(async (token: string) 
             description: repo.description,
         })));
 
-        if (batch.length < 100) {
+        if (repositoryId || batch.length < 100) {
             return repos;
         }
     }

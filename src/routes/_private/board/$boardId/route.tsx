@@ -1,9 +1,7 @@
 import authClient from "~/lib/utils/auth-client";
-import {Input} from "~/lib/client/components/ui/input";
 import type {ColumnWithCards} from "~/lib/types/types";
 import {Button} from "~/lib/client/components/ui/button";
 import {Column} from "~/lib/client/components/board/Column";
-import {Checkbox} from "~/lib/client/components/ui/checkbox";
 import {ArrowLeft, GripVertical, LogOut} from "lucide-react";
 import {Separator} from "~/lib/client/components/ui/separator";
 import {useDragScroll} from "~/lib/client/hooks/use-drag-scroll";
@@ -12,10 +10,10 @@ import React, {useCallback, useMemo, useRef, useState} from "react";
 import {useQueryClient, useSuspenseQuery} from "@tanstack/react-query";
 import {EditableText} from "~/lib/client/components/board/EditableText";
 import {GithubDialog} from "~/lib/client/components/board/GithubDialog";
-import {useUpdateBoardMutation} from "~/lib/client/react-query/mutations";
+import {BoardToolbar, type BoardFilters} from "~/lib/client/components/board/BoardToolbar";
+import {useBulkUpdateCardsMutation, useUpdateBoardMutation} from "~/lib/client/react-query/mutations";
 import {createFileRoute, Link, useNavigate, useRouter} from "@tanstack/react-router";
 import {authOptions, boardDetailsOptions} from "~/lib/client/react-query/query-options";
-import {Field, FieldLabel, FieldLegend, FieldSet} from "~/lib/client/components/ui/field";
 
 
 export const Route = createFileRoute("/_private/board/$boardId")({
@@ -24,6 +22,7 @@ export const Route = createFileRoute("/_private/board/$boardId")({
         return queryClient.query({ ...boardDetailsOptions(boardId), staleTime: "static" });
     },
     component: BoardPage,
+    remountDeps: ({ params }) => params.boardId,
 })
 
 
@@ -33,11 +32,18 @@ function BoardPage() {
     const queryClient = useQueryClient();
     const { boardId } = Route.useParams();
     const newColumnAddedRef = useRef(false);
-    const [search, setSearch] = useState("");
+    const [filters, setFilters] = useState<BoardFilters>({
+        search: "",
+        labelIds: [],
+        publicOnly: false,
+        privateOnly: false,
+        archivedOnly: false,
+    });
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+    const bulkUpdateMutation = useBulkUpdateCardsMutation(boardId);
     const boardNameEditState = useState(false);
     const updateBoardMutation = useUpdateBoardMutation();
-    const [privateOnly, setPrivateOnly] = useState(false);
-    const [archivedOnly, setArchivedOnly] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const boardData = useSuspenseQuery(boardDetailsOptions(boardId)).data;
 
@@ -74,7 +80,8 @@ function BoardPage() {
             columnsMap.set(column.id, { ...column, cards: [] });
         }
 
-        const searchTerm = search.toLowerCase();
+        const searchTerm = filters.search.toLowerCase();
+        const labelIds = filters.labelIds.filter(id => boardData.labels.some(label => label.id === id));
 
         for (const card of boardData.cards) {
             const text = [
@@ -87,8 +94,14 @@ function BoardPage() {
 
             if (
                 !text.includes(searchTerm) ||
-                (privateOnly && !card.repository?.private) ||
-                (archivedOnly && !card.repository?.archived)
+                (labelIds.length > 0 && !card.labels.some(label => labelIds.includes(label.id))) ||
+                (boardData.github && (
+                    (filters.archivedOnly && !card.repository?.archived) ||
+                    ((filters.publicOnly || filters.privateOnly) && (
+                        !card.repository ||
+                        !(card.repository.private ? filters.privateOnly : filters.publicOnly)
+                    ))
+                ))
             ) continue;
 
             const column = columnsMap.get(card.columnId);
@@ -96,7 +109,19 @@ function BoardPage() {
         }
 
         return [...columnsMap.values()].sort((a, b) => a.order - b.order);
-    }, [boardData.cards, boardData.columns, search, privateOnly, archivedOnly]);
+    }, [boardData, filters]);
+
+    const selectedIds = new Set(selectedCardIds.filter(id => boardData.cards.some(card => card.id === id)));
+    const visibleCardIds = columns.flatMap(column => column.cards.map(card => card.id));
+
+    const selection = selectionMode ? {
+        selectedIds,
+        isPending: bulkUpdateMutation.isPending,
+        onToggle: (cardId: number) => setSelectedCardIds(ids => ids.includes(cardId)
+            ? ids.filter(id => id !== cardId)
+            : [...ids, cardId]
+        ),
+    } : null;
 
     return (
         <main className="flex h-screen flex-col overflow-hidden">
@@ -135,41 +160,43 @@ function BoardPage() {
                 </div>
             </header>
 
-            {(boardData.github || boardData.cards.some(card => card.repository)) &&
-                <div className="flex shrink-0 flex-wrap items-center gap-4 border-b px-4 py-2 sm:px-6">
-                    <Input
-                        value={search}
-                        className="w-full sm:w-72"
-                        aria-label="Search cards and repositories"
-                        onChange={(ev) => setSearch(ev.target.value)}
-                        placeholder="Search repositories, notes, labels…"
-                    />
-
-                    <FieldSet className="flex-row items-center gap-4">
-                        <FieldLegend className="sr-only">
-                            Repo filters
-                        </FieldLegend>
-                        <Field orientation="horizontal" className="w-auto">
-                            <Checkbox id="private-repositories" checked={privateOnly} onCheckedChange={setPrivateOnly}/>
-                            <FieldLabel htmlFor="private-repositories">
-                                Private
-                            </FieldLabel>
-                        </Field>
-                        <Field orientation="horizontal" className="w-auto">
-                            <Checkbox id="archived-repositories" checked={archivedOnly} onCheckedChange={setArchivedOnly}/>
-                            <FieldLabel htmlFor="archived-repositories">
-                                Archived
-                            </FieldLabel>
-                        </Field>
-                    </FieldSet>
-                </div>
-            }
+            <BoardToolbar
+                board={boardData}
+                filters={filters}
+                onFiltersChange={setFilters}
+                selectionMode={selectionMode}
+                selectedIds={selectedIds}
+                visibleCardIds={visibleCardIds}
+                isPending={bulkUpdateMutation.isPending}
+                onSelectionModeChange={(enabled) => {
+                    setSelectionMode(enabled);
+                    setSelectedCardIds([]);
+                }}
+                onSelectVisible={() => setSelectedCardIds(ids => visibleCardIds.every(id => selectedIds.has(id))
+                    ? ids.filter(id => !visibleCardIds.includes(id))
+                    : [...new Set([...ids, ...visibleCardIds])]
+                )}
+                onAddLabel={(labelId) => bulkUpdateMutation.mutate({
+                    data: { action: "label", boardId, cardIds: [...selectedIds], labelId },
+                })}
+                onRemoveLabel={(labelId) => bulkUpdateMutation.mutate({
+                    data: { action: "remove-label", boardId, cardIds: [...selectedIds], labelId },
+                })}
+                onMove={(columnId) => bulkUpdateMutation.mutate({
+                    data: { action: "move", boardId, cardIds: [...selectedIds], columnId },
+                })}
+            />
 
             <div ref={scrollContainerRef} className="flex min-h-0 grow flex-col overflow-x-auto">
                 <div {...dragScroll} className="flex h-full min-h-0 w-fit grow items-start gap-3 px-4 py-5 sm:px-6">
                     {columns.map((col, idx) =>
                         <Column
                             col={col}
+                            selection={selection}
+                            onSelectCard={(cardId) => {
+                                setSelectionMode(true);
+                                setSelectedCardIds([cardId]);
+                            }}
                             key={col.id}
                             ref={columnRef}
                             columns={columns}

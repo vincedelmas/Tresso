@@ -20,7 +20,7 @@ export function RepoDetails({ repository, showLink = false }: RepoDetailsProps) 
                     className="flex items-center gap-1 text-sm underline underline-offset-4"
                 >
                     <span className="break-all">
-                        {repository.fullName}
+                        {repository.fullName.split("/")[1]}
                     </span>
                     <ArrowUpRight className="size-4 shrink-0" aria-hidden="true"/>
                 </a>
