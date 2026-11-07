@@ -1,8 +1,7 @@
-import {CheckSquare, ChevronDown, FolderInput, Tags, X} from "lucide-react";
-import type {BoardType} from "~/lib/types/types";
 import {useRef} from "react";
+import {CheckSquare, ChevronDown, FolderInput, Tags, X} from "lucide-react";
 import {InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput} from "~/lib/client/components/ui/input-group";
-import {Badge} from "~/lib/client/components/ui/badge";
+import {DEFAULT_BOARD_FILTERS, type BoardFilters, type BoardType} from "~/lib/types/types";
 import {Button} from "~/lib/client/components/ui/button";
 import {Checkbox} from "~/lib/client/components/ui/checkbox";
 import {Field, FieldLabel, FieldLegend, FieldSet} from "~/lib/client/components/ui/field";
@@ -15,15 +14,6 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger,
 } from "~/lib/client/components/ui/dropdown-menu";
-
-
-export interface BoardFilters {
-    search: string;
-    labelIds: number[];
-    publicOnly: boolean;
-    privateOnly: boolean;
-    archivedOnly: boolean;
-}
 
 
 interface BoardToolbarProps {
@@ -62,7 +52,12 @@ export function BoardToolbar({
         .flatMap(card => card.labels.map(label => label.id))
     );
     const labelActions = [
-        { title: "Add label", labels: board.labels, onSelect: onAddLabel, emptyMessage: "Create a label from a card first" },
+        {
+            title: "Add label",
+            labels: board.labels,
+            onSelect: onAddLabel,
+            emptyMessage: "Create a label from a card first",
+        },
         {
             title: "Remove label",
             labels: board.labels.filter(label => selectedLabelIds.has(label.id)),
@@ -71,10 +66,19 @@ export function BoardToolbar({
         },
     ];
 
-    const hiddenSelectionCount = [...selectedIds].filter(id => !visibleCardIds.includes(id)).length;
+    const visibleIds = new Set(visibleCardIds);
+    const hiddenSelectionCount = [...selectedIds].filter(id => !visibleIds.has(id)).length;
     const allVisibleSelected = visibleCardIds.length > 0 && visibleCardIds.every(id => selectedIds.has(id));
-    const hasFilters = filters.search || filters.labelIds.length > 0 ||
-        (board.github && (filters.publicOnly || filters.privateOnly || filters.archivedOnly));
+    const hasFilters = Boolean(
+        filters.search || filters.labelIds.length > 0 ||
+        (board.github && (filters.publicOnly || filters.privateOnly || filters.archivedOnly))
+    );
+
+    const repositoryFilters = [
+        { key: "publicOnly", label: "Public" },
+        { key: "privateOnly", label: "Private" },
+        { key: "archivedOnly", label: "Archived" },
+    ] as const;
 
     return (
         <div className="flex shrink-0 flex-col gap-3 border-b px-4 py-3 sm:px-6">
@@ -128,7 +132,9 @@ export function BoardToolbar({
                                     <span className="truncate">{label.name}</span>
                                 </DropdownMenuCheckboxItem>
                             ))}
-                            {board.labels.length === 0 && <DropdownMenuItem disabled>No labels yet</DropdownMenuItem>}
+                            {board.labels.length === 0 && (
+                                <DropdownMenuItem disabled>No labels yet</DropdownMenuItem>
+                            )}
                         </DropdownMenuGroup>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -136,30 +142,16 @@ export function BoardToolbar({
                 {board.github && (
                     <FieldSet className="flex-row flex-wrap items-center gap-3">
                         <FieldLegend className="sr-only">Repository filters</FieldLegend>
-                        <Field orientation="horizontal" className="w-auto">
-                            <Checkbox
-                                id="public-repositories"
-                                checked={filters.publicOnly}
-                                onCheckedChange={(checked) => onFiltersChange({ ...filters, publicOnly: checked })}
-                            />
-                            <FieldLabel htmlFor="public-repositories">Public</FieldLabel>
-                        </Field>
-                        <Field orientation="horizontal" className="w-auto">
-                            <Checkbox
-                                id="private-repositories"
-                                checked={filters.privateOnly}
-                                onCheckedChange={(checked) => onFiltersChange({ ...filters, privateOnly: checked })}
-                            />
-                            <FieldLabel htmlFor="private-repositories">Private</FieldLabel>
-                        </Field>
-                        <Field orientation="horizontal" className="w-auto">
-                            <Checkbox
-                                id="archived-repositories"
-                                checked={filters.archivedOnly}
-                                onCheckedChange={(checked) => onFiltersChange({ ...filters, archivedOnly: checked })}
-                            />
-                            <FieldLabel htmlFor="archived-repositories">Archived</FieldLabel>
-                        </Field>
+                        {repositoryFilters.map(({ key, label }) => (
+                            <Field key={key} orientation="horizontal" className="w-auto">
+                                <Checkbox
+                                    id={key}
+                                    checked={filters[key]}
+                                    onCheckedChange={(checked) => onFiltersChange({ ...filters, [key]: checked })}
+                                />
+                                <FieldLabel htmlFor={key}>{label}</FieldLabel>
+                            </Field>
+                        ))}
                     </FieldSet>
                 )}
 
@@ -167,13 +159,7 @@ export function BoardToolbar({
                     <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => onFiltersChange({
-                            search: "",
-                            labelIds: [],
-                            publicOnly: false,
-                            privateOnly: false,
-                            archivedOnly: false,
-                        })}
+                        onClick={() => onFiltersChange(DEFAULT_BOARD_FILTERS)}
                     >
                         <X data-icon="inline-start"/> Clear filters
                     </Button>
@@ -203,27 +189,36 @@ export function BoardToolbar({
 
                     {labelActions.map(action => (
                         <DropdownMenu key={action.title}>
-                            <DropdownMenuTrigger render={<Button size="sm" variant="outline" disabled={isPending || !selectedIds.size}/>}>
-                                <Tags data-icon="inline-start"/> {action.title} <ChevronDown data-icon="inline-end"/>
+                            <DropdownMenuTrigger
+                                render={<Button size="sm" variant="outline" disabled={isPending || !selectedIds.size}/>}
+                            >
+                                <Tags data-icon="inline-start"/>
+                                {action.title}
+                                <ChevronDown data-icon="inline-end"/>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent className="max-h-72 w-56 overflow-y-auto">
                                 <DropdownMenuGroup>
                                     {action.labels.map(label => (
                                         <DropdownMenuItem key={label.id} onClick={() => action.onSelect(label.id)}>
-                                            <Badge style={{ backgroundColor: label.color }} className="max-w-full truncate text-black/80">
-                                                {label.name}
-                                            </Badge>
+                                            <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: label.color }}/>
+                                            <span className="truncate">{label.name}</span>
                                         </DropdownMenuItem>
                                     ))}
-                                    {action.labels.length === 0 && <DropdownMenuItem disabled>{action.emptyMessage}</DropdownMenuItem>}
+                                    {action.labels.length === 0 && (
+                                        <DropdownMenuItem disabled>{action.emptyMessage}</DropdownMenuItem>
+                                    )}
                                 </DropdownMenuGroup>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     ))}
 
                     <DropdownMenu>
-                        <DropdownMenuTrigger render={<Button size="sm" variant="outline" disabled={isPending || !selectedIds.size}/>}>
-                            <FolderInput data-icon="inline-start"/> Move to <ChevronDown data-icon="inline-end"/>
+                        <DropdownMenuTrigger
+                            render={<Button size="sm" variant="outline" disabled={isPending || !selectedIds.size}/>}
+                        >
+                            <FolderInput data-icon="inline-start"/>
+                            Move to
+                            <ChevronDown data-icon="inline-end"/>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="max-h-72 w-56 overflow-y-auto">
                             <DropdownMenuGroup>

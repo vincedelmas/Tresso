@@ -5,7 +5,7 @@ import {notFound} from "@tanstack/react-router";
 import * as s from "~/lib/server/database/schemas";
 import {FormattedError} from "~/lib/utils/error-classes";
 import {authMiddleware} from "~/lib/server/middlewares/authentication";
-import {fetchGithubRepositories} from "~/lib/utils/github-repositories";
+import {fetchGithubRepositories, fetchGithubRepository} from "~/lib/utils/github-repositories";
 import {createServerFn, createServerOnlyFn} from "@tanstack/react-start";
 import {decryptGithubToken, encryptGithubToken} from "~/lib/utils/github-token";
 import {getBoardSchema, listGithubReposSchema, syncGithubReposSchema} from "~/lib/types/schemas";
@@ -84,9 +84,10 @@ export const syncGithubRepositoriesForUser = createServerOnlyFn(async (data: z.i
     for (const linked of linkedRepositories) {
         if (accessibleIds.has(linked.repositoryId)) continue;
 
-        const found = await fetchGithubRepositories(token, linked.repositoryId);
-        if (found.length) {
-            repositories.push(...found);
+        const found = await fetchGithubRepository(token, linked.repositoryId);
+
+        if (found) {
+            repositories.push(found);
         }
         else {
             missingIds.add(linked.repositoryId);

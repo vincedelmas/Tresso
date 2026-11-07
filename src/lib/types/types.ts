@@ -1,4 +1,4 @@
-import {boardDetailsOptions} from "~/lib/client/react-query/query-options";
+import type {boardDetailsOptions} from "~/lib/client/react-query/query-options";
 
 
 export const CONTENT_TYPES = {
@@ -25,9 +25,27 @@ export type ColumnWithCards = BoardType["columns"][number] & { cards: BoardType[
 export type BoardType = Awaited<ReturnType<NonNullable<ReturnType<typeof boardDetailsOptions>["queryFn"]>>>;
 
 
-
 export interface CardSelection {
     selectedIds: ReadonlySet<number>;
     isPending: boolean;
     onToggle: (cardId: number) => void;
 }
+
+
+
+export interface BoardFilters {
+    search: string;
+    labelIds: number[];
+    publicOnly: boolean;
+    privateOnly: boolean;
+    archivedOnly: boolean;
+}
+
+
+export const DEFAULT_BOARD_FILTERS: BoardFilters = {
+    search: "",
+    labelIds: [],
+    publicOnly: false,
+    privateOnly: false,
+    archivedOnly: false,
+};

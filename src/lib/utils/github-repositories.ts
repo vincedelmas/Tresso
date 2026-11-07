@@ -13,58 +13,73 @@ type GithubRepo = {
 };
 
 
-export const fetchGithubRepositories = createServerOnlyFn(async (token: string, repositoryId?: number) => {
-    const repos = [];
+const mapGithubRepository = (repo: GithubRepo) => ({
+    fork: repo.fork,
+    repositoryId: repo.id,
+    private: repo.private,
+    archived: repo.archived,
+    language: repo.language,
+    fullName: repo.full_name,
+    description: repo.description,
+});
+
+
+const fetchGithubResponse = createServerOnlyFn(async (token: string, path: string, allowNotFound = false) => {
+    let response: Response;
+
+    try {
+        response = await fetch(`https://api.github.com${path}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "X-GitHub-Api-Version": "2026-03-10",
+                Accept: "application/vnd.github+json",
+            },
+            cache: "no-store",
+            signal: AbortSignal.timeout(30_000),
+        });
+    }
+    catch {
+        throw new FormattedError("Could not reach GitHub. Please try again.");
+    }
+
+    if (response.ok || (allowNotFound && response.status === 404)) {
+        return response;
+    }
+
+    if (response.status === 401) {
+        throw new FormattedError("GitHub rejected the token. Replace it with a valid personal access token.");
+    }
+
+    if (response.status === 403 || response.status === 429) {
+        throw new FormattedError("GitHub denied access or its rate limit was reached. Check token access or try again later.");
+    }
+
+    throw new FormattedError("Could not retrieve repositories from GitHub. Please try again.");
+});
+
+
+export const fetchGithubRepositories = createServerOnlyFn(async (token: string) => {
+    const repos: ReturnType<typeof mapGithubRepository>[] = [];
 
     for (let page = 1; ; page += 1) {
-        let response: Response;
+        const response = await fetchGithubResponse(token, `/user/repos?per_page=100&sort=full_name&direction=asc&page=${page}`);
+        const batch = await response.json() as GithubRepo[];
 
-        try {
-            const path = repositoryId
-                ? `/repositories/${repositoryId}`
-                : `/user/repos?per_page=100&sort=full_name&direction=asc&page=${page}`;
+        repos.push(...batch.map(mapGithubRepository));
 
-            response = await fetch(`https://api.github.com${path}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "X-GitHub-Api-Version": "2026-03-10",
-                    Accept: "application/vnd.github+json",
-                },
-                cache: "no-store",
-                signal: AbortSignal.timeout(30_000),
-            });
-        }
-        catch {
-            throw new FormattedError("Could not reach GitHub. Please try again.");
-        }
-
-        if (repositoryId && response.status === 404) {
-            return [];
-        }
-
-        if (!response.ok) {
-            throw new FormattedError(response.status === 401
-                ? "GitHub rejected the token. Replace it with a valid personal access token."
-                : response.status === 403 || response.status === 429
-                    ? "GitHub denied access or its rate limit was reached. Check token access or try again later."
-                    : "Could not retrieve repositories from GitHub. Please try again.");
-        }
-
-        const body = await response.json();
-        const batch = (repositoryId ? [body] : body) as GithubRepo[];
-
-        repos.push(...batch.map(repo => ({
-            fork: repo.fork,
-            repositoryId: repo.id,
-            private: repo.private,
-            archived: repo.archived,
-            language: repo.language,
-            fullName: repo.full_name,
-            description: repo.description,
-        })));
-
-        if (repositoryId || batch.length < 100) {
+        if (batch.length < 100) {
             return repos;
         }
     }
+});
+
+
+export const fetchGithubRepository = createServerOnlyFn(async (token: string, repositoryId: number) => {
+    const response = await fetchGithubResponse(token, `/repositories/${repositoryId}`, true);
+
+    if (response.status === 404) {
+        return null;
+    }
+
+    return mapGithubRepository(await response.json() as GithubRepo);
 });

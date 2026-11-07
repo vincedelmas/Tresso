@@ -79,7 +79,7 @@ export const Card = ({ card, selection, onSelectCard, columns, columnId, nextCar
     const onDragStartHandler = (ev: React.DragEvent) => {
         ev.dataTransfer.effectAllowed = "move";
 
-        const data: CardTransferType = { id: card.id, title: title };
+        const data: CardTransferType = { id: card.id, title };
         ev.dataTransfer.setData(CONTENT_TYPES.card, JSON.stringify(data));
 
         ev.stopPropagation();

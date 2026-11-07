@@ -1,5 +1,5 @@
 import authClient from "~/lib/utils/auth-client";
-import type {ColumnWithCards} from "~/lib/types/types";
+import {DEFAULT_BOARD_FILTERS, type BoardFilters, type ColumnWithCards} from "~/lib/types/types";
 import {Button} from "~/lib/client/components/ui/button";
 import {Column} from "~/lib/client/components/board/Column";
 import {ArrowLeft, GripVertical, LogOut} from "lucide-react";
@@ -10,7 +10,7 @@ import React, {useCallback, useMemo, useRef, useState} from "react";
 import {useQueryClient, useSuspenseQuery} from "@tanstack/react-query";
 import {EditableText} from "~/lib/client/components/board/EditableText";
 import {GithubDialog} from "~/lib/client/components/board/GithubDialog";
-import {BoardToolbar, type BoardFilters} from "~/lib/client/components/board/BoardToolbar";
+import {BoardToolbar} from "~/lib/client/components/board/BoardToolbar";
 import {useBulkUpdateCardsMutation, useUpdateBoardMutation} from "~/lib/client/react-query/mutations";
 import {createFileRoute, Link, useNavigate, useRouter} from "@tanstack/react-router";
 import {authOptions, boardDetailsOptions} from "~/lib/client/react-query/query-options";
@@ -32,13 +32,7 @@ function BoardPage() {
     const queryClient = useQueryClient();
     const { boardId } = Route.useParams();
     const newColumnAddedRef = useRef(false);
-    const [filters, setFilters] = useState<BoardFilters>({
-        search: "",
-        labelIds: [],
-        publicOnly: false,
-        privateOnly: false,
-        archivedOnly: false,
-    });
+    const [filters, setFilters] = useState<BoardFilters>(DEFAULT_BOARD_FILTERS);
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
     const bulkUpdateMutation = useBulkUpdateCardsMutation(boardId);
@@ -92,17 +86,17 @@ function BoardPage() {
                 ...card.labels.map(label => label.name),
             ].join(" ").toLowerCase();
 
-            if (
-                !text.includes(searchTerm) ||
-                (labelIds.length > 0 && !card.labels.some(label => labelIds.includes(label.id))) ||
-                (boardData.github && (
-                    (filters.archivedOnly && !card.repository?.archived) ||
-                    ((filters.publicOnly || filters.privateOnly) && (
-                        !card.repository ||
-                        !(card.repository.private ? filters.privateOnly : filters.publicOnly)
-                    ))
-                ))
-            ) continue;
+            if (!text.includes(searchTerm)) continue;
+            if (labelIds.length > 0 && !card.labels.some(label => labelIds.includes(label.id))) continue;
+
+            if (boardData.github) {
+                const repo = card.repository;
+                if (filters.archivedOnly && !repo?.archived) continue;
+
+                if (filters.publicOnly || filters.privateOnly) {
+                    if (!repo || !(repo.private ? filters.privateOnly : filters.publicOnly)) continue;
+                }
+            }
 
             const column = columnsMap.get(card.columnId);
             column?.cards.push(card);
@@ -111,7 +105,8 @@ function BoardPage() {
         return [...columnsMap.values()].sort((a, b) => a.order - b.order);
     }, [boardData, filters]);
 
-    const selectedIds = new Set(selectedCardIds.filter(id => boardData.cards.some(card => card.id === id)));
+    const cardIds = new Set(boardData.cards.map(card => card.id));
+    const selectedIds = new Set(selectedCardIds.filter(id => cardIds.has(id)));
     const visibleCardIds = columns.flatMap(column => column.cards.map(card => card.id));
 
     const selection = selectionMode ? {
