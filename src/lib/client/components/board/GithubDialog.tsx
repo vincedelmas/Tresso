@@ -86,11 +86,11 @@ function GithubSettings({ board }: GithubDialogProps) {
 
                     listMutation.mutate({ data: { boardId: board.id, token: token.trim() || undefined } }, {
                         onSuccess: (repos) => {
-                            setToken("");
                             setSelected([]);
                             setRepos(repos);
                         },
                     });
+                    setToken("");
                 }}
             >
                 <FieldGroup>

@@ -332,6 +332,10 @@ export const useListGithubReposMutation = (boardId: number) => {
     return useMutation({
         mutationFn: listGithubRepos,
         onSuccess: () => invalidateBoardDetails(queryClient, boardId),
+        onSettled: (_data, _error, variables) => {
+            // Mutation variables remain cached after completion, including on failure.
+            delete variables.data.token;
+        },
     });
 };
 
