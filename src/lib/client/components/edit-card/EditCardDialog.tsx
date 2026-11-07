@@ -1,4 +1,4 @@
-import {RepositoryDetails} from "~/lib/client/components/board/RepositoryDetails";
+import {RepoDetails} from "~/lib/client/components/board/RepoDetails";
 import {CardType} from "~/lib/types/types";
 import {LoaderCircle, X} from "lucide-react";
 import React, {useRef, useState} from "react";
@@ -68,7 +68,7 @@ export function EditCardDialog({ card, isDialogOpen, setDialogOpen }: EditCardDi
                 </DialogHeader>
 
                 <div className="flex flex-col gap-6 py-1">
-                    {card.repository && <RepositoryDetails repository={card.repository} showLink/>}
+                    {card.repository && <RepoDetails repository={card.repository} showLink/>}
                     <div className="flex flex-col gap-2">
                         <Label htmlFor="title">Title</Label>
                         <EditableText

@@ -115,6 +115,7 @@ export const githubConnections = sqliteTable("github_connections", {
     syncedAt: integer("synced_at", { mode: "timestamp" }),
 });
 
+
 export const githubRepositories = sqliteTable("github_repositories", {
     cardId: integer("card_id").primaryKey().references(() => cards.id, { onDelete: "cascade" }),
     boardId: integer("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
@@ -127,6 +128,10 @@ export const githubRepositories = sqliteTable("github_repositories", {
     language: text("language"),
 }, (table) => [uniqueIndex("github_repositories_board_repository").on(table.boardId, table.repositoryId)]);
 
+
 export const githubRepositoriesRelations = relations(githubRepositories, ({ one }) => ({
-    card: one(cards, { fields: [githubRepositories.cardId], references: [cards.id] }),
+    card: one(cards, {
+        fields: [githubRepositories.cardId],
+        references: [cards.id],
+    }),
 }));

@@ -100,3 +100,14 @@ export const getBoardSchema = z.object({ boardId: positiveIdSchema });
 export const createBoardSchema = boardSchema.omit({ id: true, cards: true, columns: true });
 
 export const updateBoardSchema = boardSchema.partial().omit({ cards: true, columns: true }).required({ id: true });
+
+
+// --- GITHUB ---------------------------------------------------------------------
+
+export const listGithubReposSchema = getBoardSchema.extend({
+    token: z.string().trim().min(1).max(1000).optional(),
+});
+
+export const syncGithubReposSchema = getBoardSchema.extend({
+    repositoryIds: z.array(positiveIdSchema).max(10_000),
+});

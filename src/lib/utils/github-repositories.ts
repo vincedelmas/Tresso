@@ -1,33 +1,39 @@
-import {createServerOnlyFn} from "@tanstack/react-start";
 import {FormattedError} from "~/lib/utils/error-classes";
+import {createServerOnlyFn} from "@tanstack/react-start";
 
-type GithubRepository = {
+
+type GithubRepo = {
     id: number;
-    full_name: string;
-    description: string | null;
-    private: boolean;
-    archived: boolean;
     fork: boolean;
+    private: boolean;
+    full_name: string;
+    archived: boolean;
     language: string | null;
+    description: string | null;
 };
 
+
 export const fetchGithubRepositories = createServerOnlyFn(async (token: string) => {
-    const repositories = [];
-    for (let page = 1; ; page++) {
+    const repos = [];
+
+    for (let page = 1; ; page += 1) {
         let response: Response;
+
         try {
             response = await fetch(`https://api.github.com/user/repos?per_page=100&sort=full_name&direction=asc&page=${page}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    Accept: "application/vnd.github+json",
                     "X-GitHub-Api-Version": "2026-03-10",
+                    Accept: "application/vnd.github+json",
                 },
-                signal: AbortSignal.timeout(30_000),
                 cache: "no-store",
+                signal: AbortSignal.timeout(30_000),
             });
-        } catch {
+        }
+        catch {
             throw new FormattedError("Could not reach GitHub. Please try again.");
         }
+
         if (!response.ok) {
             throw new FormattedError(response.status === 401
                 ? "GitHub rejected the token. Replace it with a valid personal access token."
@@ -35,16 +41,21 @@ export const fetchGithubRepositories = createServerOnlyFn(async (token: string) 
                     ? "GitHub denied access or its rate limit was reached. Check token access or try again later."
                     : "Could not retrieve repositories from GitHub. Please try again.");
         }
-        const batch = await response.json() as GithubRepository[];
-        repositories.push(...batch.map(repo => ({
+
+        const batch = await response.json() as GithubRepo[];
+
+        repos.push(...batch.map(repo => ({
+            fork: repo.fork,
             repositoryId: repo.id,
-            fullName: repo.full_name,
-            description: repo.description,
             private: repo.private,
             archived: repo.archived,
-            fork: repo.fork,
             language: repo.language,
+            fullName: repo.full_name,
+            description: repo.description,
         })));
-        if (batch.length < 100) return repositories;
+
+        if (batch.length < 100) {
+            return repos;
+        }
     }
 });

@@ -1,14 +1,14 @@
-import {RepositoryDetails} from "~/lib/client/components/board/RepositoryDetails";
-import {toast} from "~/lib/client/components/ui/toast";
 import {cn} from "~/lib/utils/utils";
 import React, {Ref, useState} from "react";
+import {toast} from "~/lib/client/components/ui/toast";
 import {Badge} from "~/lib/client/components/ui/badge";
 import {Button} from "~/lib/client/components/ui/button";
 import {EditCardDialog} from "~/lib/client/components/edit-card/EditCardDialog";
+import {RepoDetails} from "~/lib/client/components/board/RepoDetails";
 import {DeleteConfirmationDialog} from "~/lib/client/components/DeleteConfirmationDialog";
 import {CardTransferType, CardType, ColumnWithCards, CONTENT_TYPES} from "~/lib/types/types";
 import {useDeleteCardMutation, useMoveCardMutation} from "~/lib/client/react-query/mutations";
-import {ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Ellipsis, MessageSquareMore, Pencil, Trash2} from "lucide-react";
+import {ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Ellipsis, ExternalLink, MessageSquareMore, Pencil, Trash2} from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -130,7 +130,7 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
         deleteCardMutation.mutate({ data: { id: card.id } }, {
             onSuccess: () => {
                 setIsDeleteDialogOpen(false);
-                toast.add({title: "Card deleted successfully", type: "success"});
+                toast.add({ title: "Card deleted successfully", type: "success" });
             },
         });
     };
@@ -164,19 +164,35 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                             {card.labels.length > 0 &&
                                 <div className="mb-2 flex flex-wrap gap-1">
                                     {card.labels.map((label) =>
-                                        <Badge key={label.id} style={{ backgroundColor: label.color }} className="h-4 border-0 px-1.5 text-[10px]
-                                        text-black/80 shadow-none">
+                                        <Badge
+                                            key={label.id}
+                                            style={{ backgroundColor: label.color }}
+                                            className="h-4 border-0 px-1.5 text-[10px] text-black/80 shadow-none"
+                                        >
                                             {label.name}
                                         </Badge>
                                     )}
                                 </div>
                             }
+
                             <h3 className="my-0 leading-5 whitespace-pre-wrap wrap-break-word text-foreground/90">
                                 {card.title}
                             </h3>
-                            {card.repository && <div className="mt-2"><RepositoryDetails repository={card.repository}/></div>}
+
+                            {card.repository &&
+                                <div className="mt-2">
+                                    <RepoDetails
+                                        repository={card.repository}
+                                    />
+                                </div>
+                            }
+
                             <div className="mt-auto flex grow items-end">
-                                {card.content && <MessageSquareMore className="mt-2 text-muted-foreground"/>}
+                                {card.content &&
+                                    <MessageSquareMore
+                                        className="mt-2 text-muted-foreground"
+                                    />
+                                }
                             </div>
                         </div>
                     </Button>
@@ -187,9 +203,9 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                                     size="icon-sm"
                                     variant="ghost"
                                     title="Card options"
+                                    onClick={(ev) => ev.stopPropagation()}
+                                    onPointerDown={(ev) => ev.stopPropagation()}
                                     className="absolute top-1.5 right-1.5 text-muted-foreground"
-                                    onClick={(event) => event.stopPropagation()}
-                                    onPointerDown={(event) => event.stopPropagation()}
                                 />
                             }
                         >
@@ -197,17 +213,26 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-52" onClick={stopCardClick} onPointerDown={stopCardClick}>
                             <DropdownMenuGroup>
-                                {card.repository && <DropdownMenuItem render={<a href={`https://github.com/${card.repository.fullName}`} target="_blank" rel="noreferrer"/>}>Open on GitHub ↗</DropdownMenuItem>}
+                                {card.repository &&
+                                    <DropdownMenuItem
+                                        render={
+                                            <a
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                href={`https://github.com/${card.repository.fullName}`}
+                                            />
+                                        }
+                                    >
+                                        <ExternalLink/> Open on GitHub
+                                    </DropdownMenuItem>
+                                }
                                 <DropdownMenuItem disabled={isPending} onClick={openEditDialog}>
                                     <Pencil/> Edit card
                                 </DropdownMenuItem>
                             </DropdownMenuGroup>
                             <DropdownMenuSeparator/>
                             <DropdownMenuGroup>
-                                <DropdownMenuItem
-                                    onClick={() => moveCard("start")}
-                                    disabled={isPending || previousCardId === undefined}
-                                >
+                                <DropdownMenuItem onClick={() => moveCard("start")} disabled={isPending || previousCardId === undefined}>
                                     <ArrowUpToLine/> Move to top
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={onMoveUpHandler} disabled={isPending || previousCardId === undefined}>
@@ -216,10 +241,7 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                                 <DropdownMenuItem onClick={onMoveDownHandler} disabled={isPending || nextCardId === undefined}>
                                     <ArrowDown/> Move down
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() => moveCard("end")}
-                                    disabled={isPending || nextCardId === undefined}
-                                >
+                                <DropdownMenuItem onClick={() => moveCard("end")} disabled={isPending || nextCardId === undefined}>
                                     <ArrowDownToLine/> Move to bottom
                                 </DropdownMenuItem>
                             </DropdownMenuGroup>
@@ -234,7 +256,9 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                                                 .filter((targetColumn) => targetColumn.id !== columnId)
                                                 .map((targetColumn) =>
                                                     <DropdownMenuItem key={targetColumn.id} onClick={() => onMoveToColHandler(targetColumn)}>
-                                                        <span className="truncate">{targetColumn.name}</span>
+                                                        <span className="truncate">
+                                                            {targetColumn.name}
+                                                        </span>
                                                     </DropdownMenuItem>
                                                 )
                                             }
@@ -244,11 +268,7 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                             </DropdownMenuGroup>
                             <DropdownMenuSeparator/>
                             <DropdownMenuGroup>
-                                <DropdownMenuItem
-                                    disabled={isPending}
-                                    onClick={() => setIsDeleteDialogOpen(true)}
-                                    variant="destructive"
-                                >
+                                <DropdownMenuItem disabled={isPending} onClick={() => setIsDeleteDialogOpen(true)} variant="destructive">
                                     <Trash2/> Delete card
                                 </DropdownMenuItem>
                             </DropdownMenuGroup>
@@ -256,17 +276,19 @@ export const Card = ({ card, columns, columnId, nextCardId, previousCardId, ref 
                     </DropdownMenu>
                 </div>
             </li>
+
             <EditCardDialog
                 card={card}
                 isDialogOpen={isEditDialogOpen}
                 setDialogOpen={setIsEditDialogOpen}
             />
+
             <DeleteConfirmationDialog
                 open={isDeleteDialogOpen}
                 title="Delete this card?"
-                isPending={deleteCardMutation.isPending}
                 onConfirm={onDeleteHandler}
                 onOpenChange={setIsDeleteDialogOpen}
+                isPending={deleteCardMutation.isPending}
                 description={`“${card.title}” will be permanently deleted.`}
             />
         </>
