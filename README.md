@@ -1,140 +1,69 @@
 # Tresso
 
-Tresso is a simple Kanban board application inspired by Trello made to be self-hosted.
-It provides the core functionality needed to organize projects with boards, columns, cards and labels in a clean, modern interface.
+A self-hosted Kanban app inspired by Trello, with optional GitHub repository boards.
 
-## Features
+- Boards, draggable columns and cards, notes, and colored labels.
+- Search and label filters on every board.
+- Multi-select to move cards or add and remove labels.
+- Import public and private GitHub repositories as cards, with manual refresh.
+- Google sign-in.
 
-- **Board Management:** Create multiple boards to separate your projects.
-- **Draggable Interface:** Organize your workflow by dragging and dropping columns and cards.
-- **Card Details:** Add titles and detailed descriptions to your cards.
-- **Labeling System:** Create, edit, and assign color-coded labels to cards for easy categorization.
-- **Authentication:** Secure user authentication via Google OAuth.
-- **Clean UI:** A responsive and minimal user interface built with shadcn/ui + Tailwind CSS.
+Built with TanStack Start, React, TypeScript, Drizzle, SQLite, and shadcn/ui.
 
-## Tech Stack
+## Run locally
 
-- **ORM:** Drizzle ORM
-- **Language:** TypeScript
-- **Routing:** TanStack Router
-- **Authentication:** better-auth
-- **Data Fetching & State:** TanStack Query
-- **Framework:** TanStack Start (Full-stack React)
-- **Database:** SQLite (libSQL client, but can be replaced by any other SQL database)
-- **UI:**
-    - React
-    - shadcn/ui
-    - Tailwind CSS
-
-## Getting Started
-
-Follow these instructions to get a local instance of Tresso up and running.
-
-### Prerequisites
-
-- BUn (v1.3+)
-- Google OAuth credentials from Google Cloud Console.
-
-#### 1. Clone the Repository
+You'll need [Bun](https://bun.sh) and Google OAuth credentials.
 
 ```bash
-git clone https://github.com/Crossoufire/tresso.git
-cd tresso
-```
-
-#### 2. Install Dependencies
-
-```bash
+git clone https://github.com/vincedelmas/Tresso.git
+cd Tresso
 bun install
-```
-
-#### 3. Set Up The Env Variables
-
-Create a `.env` file in the root of the project by copying the example file:
-
-```bash
 cp .env.example .env
 ```
 
-Now, fill in the `.env` file with your credentials:
+Edit `.env`:
 
 ```env
-# Base URL of the app
 VITE_BASE_URL="http://localhost:3000"
-
-# SQLite Database URL
-DATABASE_URL="/location/of/your/db"
-
-# Better-Auth Secret
-BETTER_AUTH_SECRET="your_strong_secret_here"
-
-# Google OAuth Credentials
-GOOGLE_CLIENT_ID="your_google_client_id"
-GOOGLE_CLIENT_SECRET="your_google_client_secret"
+DATABASE_URL="./site.db"
+BETTER_AUTH_SECRET="replace-with-a-long-random-secret"
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
 ```
 
-For Google OAuth, ensure the "Authorized redirect URIs" in the Google Cloud Console is set to `${VITE_BASE_URL}/api/auth/callback/google`.
-
-#### 4. Set Up the Database
-
-This project uses Drizzle ORM to manage the database schema.
-Run the following command to push the schema from `src/server/database/schemas` to your SQLite DB.
+Add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI
+in your Google OAuth settings. For another host, use its base URL instead.
 
 ```bash
 bun run dk push
-```
-
-#### 5. Run the App
-
-You can now start the dev server with:
-
-```bash
 bun run dev
 ```
 
-The application will be available at [http://localhost:3000](http://localhost:3000).
+Open [localhost:3000](http://localhost:3000).
 
-### GitHub repository boards
+## GitHub boards
 
-Open a board and choose **GitHub** to connect a fine-grained personal access token.
-Give the token read-only **Metadata** access to the repositories you want to organize.
-GitHub only returns repositories the token can access, including private repositories;
-organization policies and token resource-owner selection may limit that list.
+Open any board and click **GitHub**. Connect a fine-grained personal access token
+with read-only **Metadata** access, select repositories, and import them into Inbox.
+Use columns and labels to organize them, with Public, Private, Archived, and Fork
+filters to narrow the board.
 
-Load repositories, select them, and import them into **Inbox**. Move the linked cards
-between columns and assign labels as usual. Repository descriptions and
-Public/Private, Archived, Fork, and language badges are synced separately from your
-card titles and personal notes. Use the board search and Private/Archived filters
-to narrow the view.
+**Refresh imported** updates repository details while keeping your card titles,
+notes, labels, and positions. Nothing is changed on GitHub.
 
-**Refresh imported** updates metadata without moving cards or replacing titles,
-notes, or labels. Repeated imports do not duplicate repositories on the same board.
-New repositories must be selected for import. Repositories missing from the list are checked individually by their stable GitHub
-ID. A 404 removes the linked card and its notes and labels. GitHub also returns
-404 for repositories the token can no longer access, so those cards are removed
-too. Network errors, rate limits, and server errors abort refresh without removing
-cards. The refresh result reports how many cards were removed.
-Deleting a card removes its link, so it can be imported again.
+Refresh removes a card if GitHub returns 404 for its repository. This also happens
+if the token loses access to a private repository. The card's notes are deleted too.
 
-Apply the schema update with `bun run dk push` before using the feature.
-Tokens are encrypted in the database with AES-256-GCM using a key derived from
-`BETTER_AUTH_SECRET` and are never included in board responses. Keep that secret
-stable; after changing it, replace saved GitHub tokens. **Remove saved token** stops
-access to GitHub while keeping imported cards and metadata. Sync is manual and
-does not change anything on GitHub.
+Tokens are stored encrypted. Keep `BETTER_AUTH_SECRET` stable, or reconnect your
+tokens after changing it.
 
+## Development
 
-### Board search, filters, and bulk actions
+```bash
+bun test
+bun run lint
+```
 
-Every board includes search across card titles, notes, and labels, plus a label
-filter. Selecting several labels shows cards matching any of them. Connected
-GitHub boards also include Public, Private, Archived, and Fork filters; Public and
-Private combine as alternatives, while Archived and Fork narrow either visibility.
+## License
 
-Choose **Select cards** to select individual cards or **Select visible** to select
-all cards matching the current filters. Use **Add label** to apply an existing
-label to the selection, **Remove label** to remove a label from selected cards, or **Move to** to move selected cards to the top of a
-column in their current board order. Existing labels and notes are preserved.
-
-Selections persist when filters change. The toolbar reports selected cards hidden
-by filters, and bulk actions include them. **Done selecting** clears the selection.
+[GPL-3.0](LICENSE).
