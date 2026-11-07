@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.4.0](https://github.com/vincedelmas/Tresso/compare/v1.3.3...v1.4.0) (2026-11-07)
+
+
+### Features
+
+* add bulk card actions and board filters ([80ab4e9](https://github.com/vincedelmas/Tresso/commit/80ab4e9e36b8342d79cb1ba3ed0f6b91c9f5b754))
+* add bulk label removal ([80ab4e9](https://github.com/vincedelmas/Tresso/commit/80ab4e9e36b8342d79cb1ba3ed0f6b91c9f5b754))
+* add card selection to card menu ([80ab4e9](https://github.com/vincedelmas/Tresso/commit/80ab4e9e36b8342d79cb1ba3ed0f6b91c9f5b754))
+* add GitHub fork filter ([df0d6f6](https://github.com/vincedelmas/Tresso/commit/df0d6f64f77ca34e8b65c26b454613030e445ee6))
+* add GitHub repository boards ([aec64dd](https://github.com/vincedelmas/Tresso/commit/aec64dda61029562630e3f54fcac201025853ef4))
+* clear board search and simplify repository names ([80ab4e9](https://github.com/vincedelmas/Tresso/commit/80ab4e9e36b8342d79cb1ba3ed0f6b91c9f5b754))
+* remove missing repository cards during sync ([80ab4e9](https://github.com/vincedelmas/Tresso/commit/80ab4e9e36b8342d79cb1ba3ed0f6b91c9f5b754))
+
+
+### Bug Fixes
+
+* clear GitHub tokens from mutation state ([c957a82](https://github.com/vincedelmas/Tresso/commit/c957a827022dcd61e53fbe50e96128b6f24a1994))
+* move bulk-selected cards to column top ([80ab4e9](https://github.com/vincedelmas/Tresso/commit/80ab4e9e36b8342d79cb1ba3ed0f6b91c9f5b754))
+* use native ESM directory in Vite config ([ec99496](https://github.com/vincedelmas/Tresso/commit/ec9949601b2da2c6856f631fb48b72ce00fb7367))
+
+
+### Code Refactoring
+
+* clean up board controls and GitHub sync ([aa6d389](https://github.com/vincedelmas/Tresso/commit/aa6d38905edadce1706d2ed510c94525eef6a810))
+* clean up GitHub repo integration ([565c7db](https://github.com/vincedelmas/Tresso/commit/565c7db4b3135b7eb308f30851a26454419316f8))
+
 ## [1.3.3](https://github.com/vincedelmas/Tresso/compare/v1.3.2...v1.3.3) (2026-11-05)
 
 
