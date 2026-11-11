@@ -1,19 +1,20 @@
 import authClient from "~/lib/utils/auth-client";
-import {DEFAULT_BOARD_FILTERS, type BoardFilters, type ColumnWithCards} from "~/lib/types/types";
 import {Button} from "~/lib/client/components/ui/button";
 import {Column} from "~/lib/client/components/board/Column";
-import {ArrowLeft, GripVertical, LogOut} from "lucide-react";
 import {Separator} from "~/lib/client/components/ui/separator";
 import {useDragScroll} from "~/lib/client/hooks/use-drag-scroll";
 import {NewColumn} from "~/lib/client/components/board/NewColumn";
 import React, {useCallback, useMemo, useRef, useState} from "react";
-import {useQueryClient, useSuspenseQuery} from "@tanstack/react-query";
 import {EditableText} from "~/lib/client/components/board/EditableText";
 import {GithubDialog} from "~/lib/client/components/board/GithubDialog";
 import {BoardToolbar} from "~/lib/client/components/board/BoardToolbar";
-import {useBulkUpdateCardsMutation, useUpdateBoardMutation} from "~/lib/client/react-query/mutations";
+import {useQuery, useQueryClient, useSuspenseQuery} from "@tanstack/react-query";
+import {ArrowLeft, Check, ChevronDown, GripVertical, LogOut} from "lucide-react";
 import {createFileRoute, Link, useNavigate, useRouter} from "@tanstack/react-router";
-import {authOptions, boardDetailsOptions} from "~/lib/client/react-query/query-options";
+import {type BoardFilters, type ColumnWithCards, DEFAULT_BOARD_FILTERS} from "~/lib/types/types";
+import {useBulkUpdateCardsMutation, useUpdateBoardMutation} from "~/lib/client/react-query/mutations";
+import {authOptions, boardDetailsOptions, boardsListOptions} from "~/lib/client/react-query/query-options";
+import {DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger} from "~/lib/client/components/ui/dropdown-menu";
 
 
 export const Route = createFileRoute("/_private/board/$boardId")({
@@ -32,14 +33,15 @@ function BoardPage() {
     const queryClient = useQueryClient();
     const { boardId } = Route.useParams();
     const newColumnAddedRef = useRef(false);
-    const [filters, setFilters] = useState<BoardFilters>(DEFAULT_BOARD_FILTERS);
-    const [selectionMode, setSelectionMode] = useState(false);
-    const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
-    const bulkUpdateMutation = useBulkUpdateCardsMutation(boardId);
     const boardNameEditState = useState(false);
     const updateBoardMutation = useUpdateBoardMutation();
+    const { data: boards = [] } = useQuery(boardsListOptions);
+    const bulkUpdateMutation = useBulkUpdateCardsMutation(boardId);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
     const boardData = useSuspenseQuery(boardDetailsOptions(boardId)).data;
+    const [filters, setFilters] = useState<BoardFilters>(DEFAULT_BOARD_FILTERS);
 
     const dragScroll = useDragScroll(scrollContainerRef);
 
@@ -129,9 +131,15 @@ function BoardPage() {
                         <GripVertical/>
                     </span>
                     <Button size="sm" variant="ghost" nativeButton={false} render={<Link to="/boards"/>}>
-                        <ArrowLeft data-icon="inline-start"/> Boards
+                        <ArrowLeft data-icon="inline-start"/>
+                        Boards
                     </Button>
-                    <Separator orientation="vertical" className="h-5"/>
+
+                    <Separator
+                        orientation="vertical"
+                        className="h-5 data-vertical:self-center"
+                    />
+
                     <h1 className="min-w-0 font-heading text-lg font-medium tracking-tight sm:text-xl">
                         <EditableText
                             fieldName="name"
@@ -146,12 +154,45 @@ function BoardPage() {
                             }
                         />
                     </h1>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Switch board"/>}>
+                            <ChevronDown/>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-64" align="start">
+                            <DropdownMenuGroup>
+                                <DropdownMenuLabel>Switch board</DropdownMenuLabel>
+                                {boards.map(board => (
+                                    <DropdownMenuItem
+                                        key={board.id}
+                                        render={
+                                            <Link
+                                                to="/board/$boardId"
+                                                params={{ boardId: board.id }}
+                                                aria-current={board.id === boardId ? "page" : undefined}
+                                            />
+                                        }
+                                    >
+                                        <span
+                                            className="size-3 shrink-0 rounded-sm"
+                                            style={{ backgroundColor: board.color }}
+                                        />
+                                        <span className="min-w-0 flex-1 truncate">
+                                            {board.name}
+                                        </span>
+                                        {board.id === boardId && <Check/>}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     <GithubDialog board={boardData}/>
                     <Button size="sm" variant="ghost" onClick={handleLogout} className="shrink-0">
                         <LogOut data-icon="inline-start"/>{" "}
-                        <span className="hidden sm:inline">Sign out</span>
+                        <span className="hidden sm:inline">
+                            Sign out
+                        </span>
                     </Button>
                 </div>
             </header>
@@ -159,9 +200,9 @@ function BoardPage() {
             <BoardToolbar
                 board={boardData}
                 filters={filters}
+                selectedIds={selectedIds}
                 onFiltersChange={setFilters}
                 selectionMode={selectionMode}
-                selectedIds={selectedIds}
                 visibleCardIds={visibleCardIds}
                 isPending={bulkUpdateMutation.isPending}
                 onSelectionModeChange={(enabled) => {
@@ -188,16 +229,16 @@ function BoardPage() {
                     {columns.map((col, idx) =>
                         <Column
                             col={col}
+                            key={col.id}
+                            ref={columnRef}
+                            columns={columns}
                             selection={selection}
+                            nextColumnId={columns[idx + 1]?.id}
+                            previousColumnId={columns[idx - 1]?.id}
                             onSelectCard={(cardId) => {
                                 setSelectionMode(true);
                                 setSelectedCardIds([cardId]);
                             }}
-                            key={col.id}
-                            ref={columnRef}
-                            columns={columns}
-                            nextColumnId={columns[idx + 1]?.id}
-                            previousColumnId={columns[idx - 1]?.id}
                         />
                     )}
                     <NewColumn

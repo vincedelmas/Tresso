@@ -71,14 +71,22 @@ export const createBoard = createServerFn({ method: "POST" })
     .middleware([authMiddleware])
     .validator(createBoardSchema)
     .handler(async ({ data, context: { currentUser } }) => {
-        const [newBoard] = await db
-            .insert(s.boards)
-            .values({
-                ...data,
-                userId: currentUser.id,
-            }).returning({ id: s.boards.id });
+        const { prefillColumns, ...board } = data;
 
-        return newBoard.id;
+        return db.transaction((tx) => {
+            const newBoard = tx.insert(s.boards)
+                .values({ ...board, userId: currentUser.id })
+                .returning({ id: s.boards.id }).get();
+
+            if (prefillColumns) {
+                tx.insert(s.columns)
+                    .values(["Todo", "On Hold", "Up Next", "In Progress", "Done"]
+                        .map((name, order) => ({ name, order, boardId: newBoard.id }))
+                    ).run();
+            }
+
+            return newBoard.id;
+        });
     });
 
 

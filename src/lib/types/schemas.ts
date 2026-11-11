@@ -108,7 +108,9 @@ export const deleteBoardSchema = boardSchema.pick({ id: true });
 
 export const getBoardSchema = z.object({ boardId: positiveIdSchema });
 
-export const createBoardSchema = boardSchema.omit({ id: true, cards: true, columns: true });
+export const createBoardSchema = boardSchema.omit({ id: true, cards: true, columns: true }).extend({
+    prefillColumns: z.boolean().optional(),
+});
 
 export const updateBoardSchema = boardSchema.partial().omit({ cards: true, columns: true }).required({ id: true });
 
