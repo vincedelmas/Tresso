@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/vincedelmas/Tresso/compare/v1.4.0...v1.5.0) (2026-11-11)
+
+
+### Features
+
+* **boards:** add starter cols and quick board switching ([504a1b3](https://github.com/vincedelmas/Tresso/commit/504a1b39be7c9a614f9224967db4041e9c5cf314))
+
 ## [1.4.0](https://github.com/vincedelmas/Tresso/compare/v1.3.3...v1.4.0) (2026-11-07)
 
 
